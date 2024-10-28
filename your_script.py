@@ -1,15 +1,20 @@
 import pandas as pd
 import requests
+import os
+import json
+import re
 from io import BytesIO
 from zipfile import ZipFile
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-import re
+
 
 # Configuración de credenciales para Google Sheets
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-creds = Credentials.from_service_account_file('api-mercado-publico-2180c2016c7d.json:Zone.json', scopes=SCOPES)
+creds_json = os.environ["GOOGLE_APPLICATION_CREDENTIALS_JSON"]
+creds_info = json.loads(creds_json)
+creds = Credentials.from_service_account_info(creds_info, scopes=SCOPES)
 gc = gspread.authorize(creds)
 
 # ID de la hoja de Google Sheets
