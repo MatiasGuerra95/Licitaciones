@@ -1,0 +1,31 @@
+name: Crear Ranking de Licitaciones
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+
+jobs:
+  run_script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip 
+          pip install -r requirements.txt
+
+      - name: Correr Script Licitaciones
+        env:
+            GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        run: python your_script.py
+
+      - name: Output Success Message
+        run: echo "Script ejecutado correctamente en GitHub Actions."
