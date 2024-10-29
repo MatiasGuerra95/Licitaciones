@@ -22,11 +22,13 @@ jobs:
           python -m pip install --upgrade pip 
           pip install -r requirements.txt
 
-      
+      - name: Verificar Secretos
+        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}"
+    
 
       - name: Correr Script Licitaciones
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
+          GGOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
         run: python your_script.py
 
       - name: Output Success Message
