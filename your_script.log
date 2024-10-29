@@ -1,0 +1,55 @@
+2024-10-29 11:53:04,623 - INFO - Autenticación con Google Sheets exitosa.
+2024-10-29 11:53:05,474 - INFO - Spreadsheet con ID 1EGoDJtO-b5dAGzC8LRYyZVdhHdcE2_ukgZAl-Ni9IxM abierto exitosamente.
+2024-10-29 11:53:06,043 - INFO - Hoja 1 obtenida exitosamente.
+2024-10-29 11:53:06,546 - INFO - Hoja 7 obtenida exitosamente.
+2024-10-29 11:53:07,114 - INFO - Hoja 6 obtenida exitosamente.
+2024-10-29 11:53:08,220 - INFO - Hoja 10 obtenida exitosamente.
+2024-10-29 11:53:09,151 - INFO - Hoja 3 obtenida exitosamente.
+2024-10-29 11:53:10,029 - INFO - Hoja 2 obtenida exitosamente.
+2024-10-29 11:53:11,604 - INFO - Fecha mínima de publicación: 2024-10-13
+2024-10-29 11:53:11,604 - INFO - Fecha mínima de cierre: 2024-10-29
+2024-10-29 11:53:11,605 - INFO - URL del mes actual: https://transparenciachc.blob.core.windows.net/lic-da/2024-10.zip
+2024-10-29 11:53:11,605 - INFO - URL del mes anterior: https://transparenciachc.blob.core.windows.net/lic-da/2024-9.zip
+2024-10-29 11:53:11,606 - INFO - Descargando licitaciones desde: https://transparenciachc.blob.core.windows.net/lic-da/2024-10.zip
+2024-10-29 11:54:29,199 - INFO - Archivo ZIP descargado y abierto exitosamente desde: https://transparenciachc.blob.core.windows.net/lic-da/2024-10.zip
+2024-10-29 11:54:29,199 - INFO - Procesando lic_2024-10.csv...
+2024-10-29 11:54:33,927 - INFO - Archivo lic_2024-10.csv procesado exitosamente.
+2024-10-29 11:54:33,928 - INFO - Todos los archivos CSV de https://transparenciachc.blob.core.windows.net/lic-da/2024-10.zip han sido concatenados exitosamente.
+2024-10-29 11:54:33,929 - INFO - Descargando licitaciones desde: https://transparenciachc.blob.core.windows.net/lic-da/2024-9.zip
+2024-10-29 11:56:50,124 - INFO - Archivo ZIP descargado y abierto exitosamente desde: https://transparenciachc.blob.core.windows.net/lic-da/2024-9.zip
+2024-10-29 11:56:50,131 - INFO - Procesando lic_2024-9.csv...
+2024-10-29 11:56:55,083 - INFO - Archivo lic_2024-9.csv procesado exitosamente.
+2024-10-29 11:56:55,084 - INFO - Todos los archivos CSV de https://transparenciachc.blob.core.windows.net/lic-da/2024-9.zip han sido concatenados exitosamente.
+2024-10-29 11:56:55,795 - INFO - Filtradas licitaciones con 'CodigoEstado' = 5. Total: 54490
+2024-10-29 11:56:55,821 - INFO - Seleccionadas columnas importantes. Total de licitaciones: 54490
+2024-10-29 11:56:55,852 - INFO - Filtradas licitaciones por 'FechaCreacion' >= 2024-10-13 00:00:00. Total: 32038
+2024-10-29 11:56:55,862 - INFO - Filtradas licitaciones por 'FechaCierre' >= 2024-10-29 00:00:00. Total: 32034
+2024-10-29 11:56:56,905 - INFO - Contenido de la Hoja 7 borrado exitosamente.
+2024-10-29 11:57:22,665 - INFO - Datos actualizados en Google Sheets exitosamente en la Hoja 7.
+2024-10-29 11:57:23,547 - INFO - Total de 'CodigoExterno' seleccionados para eliminar: 26
+2024-10-29 11:57:26,959 - INFO - Total de licitaciones en la Hoja 7 antes de filtrar: 32034
+2024-10-29 11:57:26,980 - INFO - Total de licitaciones en la Hoja 7 después de filtrar: 32023
+2024-10-29 11:57:27,639 - INFO - Contenido de la Hoja 7 borrado antes de actualizar con datos filtrados.
+2024-10-29 11:57:47,622 - INFO - Se eliminaron 26 licitaciones seleccionadas de la Hoja 7.
+2024-10-29 11:57:57,791 - INFO - Palabras clave obtenidas: ['asesoria', 'asesoramiento', 'consultoria', 'reclutamiento', 'seleccion', 'entrevista', 'transitorio', 'externo', 'temporal', 'outsourcing']
+2024-10-29 11:58:23,583 - INFO - Rubros y productos obtenidos: {'consultorías para el desarrollo de recursos humanos': ['consultorías en desarrollo gerencial', 'planificación de compensaciones o beneficios', 'relaciones laborales y sindicales', 'formación, capacitación y entrenamiento de personal', 'análisis de productividad de recursos humanos', 'estudios y programas de reubicación de personal', 'agencias de empleo y head hunters', 'programas de reconocimientos laboral', 'relaciones laborales y sindicales'], 'desarrollo de recursos humanos': ['entrenamiento de personal para el sector bancario o financiero', 'servicios de formación y readiestramiento', 'desarrollo de recursos humanos en el sector comercial', 'desarrollo de recursos humanos en el sector industrial', 'desarrollo de recursos humanos en el sector sanitario', 'desarrollo de recursos humanos en el sector de gestión', 'desarrollo de recursos humanos en el sector público', 'formación profesional para la marina mercante'], 'contratación de personal': ['servicios de contratación de personal', 'servicios de comprobación de referencias o antecedentes', 'servicios de evaluación de currículum vitae', 'personal de marketing', 'operadores de maquinarias', 'asistentes administrativos', 'personal técnico', 'personal financiero', 'especialistas en tecnología de información (tic)', 'especialistas de redes informáticas']}
+2024-10-29 11:58:24,844 - INFO - Puntaje de clientes obtenidos: {'universidad de santiago de chile': 5, 'i municipalidad de maipu': 10, 'banco del estado de chile': 10, 'senado de la republica': 10, 'universidad de talca': 5, 'empresa de correos de chile': 5, 'subsecretaria del ministerio de la vivienda y urbanismo': 5, 'serviu metropolitano': 5, 'i municipalidad de concon': 5, 'ilustre municipalidad de la calera': 5, 'municipalidad de los andes': 5, 'fondo nacional de salud - fonasa': 5}
+2024-10-29 11:58:26,804 - INFO - Ponderaciones obtenidas: {'Puntaje Rubro': 0.3, 'Puntaje Palabra': 0.4, 'Puntaje Clientes': 0.1, 'Puntaje Monto': 0.2}
+2024-10-29 11:58:30,076 - INFO - Licitaciones cargadas desde la Hoja 7. Total: 32023
+2024-10-29 11:58:30,091 - INFO - Filtradas licitaciones con 'TiempoDuracionContrato' != 0. Total: 8748
+2024-10-29 11:58:30,123 - INFO - Filtradas licitaciones relacionadas con salud. Total: 2203
+2024-10-29 11:58:30,161 - INFO - Licitaciones agrupadas por 'CodigoExterno'. Total: 806
+2024-10-29 11:58:30,190 - INFO - Puntaje por palabras clave calculado.
+2024-10-29 11:58:30,203 - INFO - Puntaje por rubros calculado.
+2024-10-29 11:58:30,210 - INFO - Puntaje por monto calculado.
+2024-10-29 11:58:30,210 - INFO - Puntaje por clientes calculado.
+2024-10-29 11:58:30,213 - INFO - Puntaje total calculado.
+2024-10-29 11:58:30,987 - INFO - Hoja actualizada exitosamente en el rango A1.
+2024-10-29 11:58:30,987 - INFO - Puntajes no relativos subidos a la Hoja 10 exitosamente.
+2024-10-29 11:58:30,995 - INFO - Top 100 licitaciones seleccionadas.
+2024-10-29 11:58:30,996 - INFO - Totales calculados para cada criterio dentro del Top 100.
+2024-10-29 11:58:30,999 - INFO - Puntajes relativos ajustados para que sumen 100.
+2024-10-29 11:58:31,000 - INFO - Puntaje Total SUMAPRODUCTO calculado.
+2024-10-29 11:58:31,001 - INFO - Top 100 licitaciones ordenadas por 'Puntaje Total SUMAPRODUCTO'.
+2024-10-29 11:58:31,697 - INFO - Hoja actualizada exitosamente en el rango A3.
+2024-10-29 11:58:31,697 - INFO - Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.
