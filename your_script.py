@@ -277,8 +277,8 @@ def obtener_palabras_clave():
         palabras = [
             worksheet_hoja1.acell('C27').value, worksheet_hoja1.acell('C28').value,
             worksheet_hoja1.acell('C29').value, worksheet_hoja1.acell('C30').value,
-            worksheet_hoja1.acell('C31').value, worksheet_hoja1.acell('C31').value,
-            worksheet_hoja1.acell('C32'),
+            worksheet_hoja1.acell('C31').value, worksheet_hoja1.acell('C32').value,
+            worksheet_hoja1.acell('C33'),
             worksheet_hoja1.acell('F27').value, worksheet_hoja1.acell('F28').value,
             worksheet_hoja1.acell('F29').value, worksheet_hoja1.acell('F30').value,
             worksheet_hoja1.acell('F31').value, worksheet_hoja1.acell('F32').value,
