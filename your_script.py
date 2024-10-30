@@ -275,12 +275,17 @@ def obtener_palabras_clave():
         palabras = [
             worksheet_hoja1.acell('C27').value, worksheet_hoja1.acell('C28').value,
             worksheet_hoja1.acell('C29').value, worksheet_hoja1.acell('C30').value,
-            worksheet_hoja1.acell('C31').value,
+            worksheet_hoja1.acell('C31').value, worksheet_hoja1.acell('C31').value,
+            worksheet_hoja1.acell('C32'),
             worksheet_hoja1.acell('F27').value, worksheet_hoja1.acell('F28').value,
             worksheet_hoja1.acell('F29').value, worksheet_hoja1.acell('F30').value,
-            worksheet_hoja1.acell('F31').value,
+            worksheet_hoja1.acell('F31').value, worksheet_hoja1.acell('F32').value,
+            worksheet_hoja1.acell('F33').value, worksheet_hoja1.acell('F34').value,
+            worksheet_hoja1.acell('F35').value,
             worksheet_hoja1.acell('I27').value, worksheet_hoja1.acell('I28').value,
-            worksheet_hoja1.acell('I29').value, worksheet_hoja1.acell('I30').value
+            worksheet_hoja1.acell('I29').value, worksheet_hoja1.acell('I30').value,
+            worksheet_hoja1.acell('I31').value, worksheet_hoja1.acell('I32').value,
+            worksheet_hoja1.acell('I33').value, worksheet_hoja1.acell('I34').value
         ]
         palabras_clave = [p.lower() for p in palabras if p]
         logging.info(f"Palabras clave obtenidas: {palabras_clave}")
@@ -569,6 +574,14 @@ def procesar_licitaciones_y_generar_ranking():
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
         data_final = [[str(x) for x in row] for row in data_final]  # Convertir todos los valores a strings
     
+        # Obtener el valor de la celda A1 para preservarlo
+        nombre_a1 = worksheet_hoja2.acell('A1').value
+
+        # Limpiar la hoja pero mantener el valor de A1
+        worksheet_hoja2.clear()
+        worksheet_hoja2.update('A1', [[nombre_a1]])  # Restaurar el valor original de A1
+
+
         actualizar_hoja(worksheet_hoja2, 'A3', data_final)
         logging.info("Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.")
     
