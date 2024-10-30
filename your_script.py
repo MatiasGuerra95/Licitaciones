@@ -73,12 +73,13 @@ except Exception as e:
 
 # Seleccionar las hojas necesarias con manejo de errores
 try:
-    worksheet_hoja1 = get_worksheet_with_retry(sh, 0)  # Hoja 1
-    worksheet_hoja7 = get_worksheet_with_retry(sh, 6)  # Hoja 7
-    worksheet_hoja6 = get_worksheet_with_retry(sh, 5)  # Hoja 6
-    worksheet_hoja10 = get_worksheet_with_retry(sh, 9)  # Hoja 10
-    worksheet_hoja3 = get_worksheet_with_retry(sh, 2)  # Hoja 3
-    worksheet_hoja2 = get_worksheet_with_retry(sh, 1)  # Hoja 2
+    worksheet_hoja1 = get_worksheet_with_retry(sh, 0)  # Hoja Inicio
+    worksheet_hoja7 = get_worksheet_with_retry(sh, 6)  # Hoja Licitaciones Activas y Duplicadas
+    worksheet_hoja6 = get_worksheet_with_retry(sh, 5)  # Hoja Seleccion
+    worksheet_hoja10 = get_worksheet_with_retry(sh, 7)  # Hoja Ranking no relativo
+    worksheet_hoja3 = get_worksheet_with_retry(sh, 2)  # Hoja Rubros
+    worksheet_hoja2 = get_worksheet_with_retry(sh, 1)  # Hoja Ranking
+    
 except Exception as e:
     logging.error(f"Error al obtener una o más hojas: {e}")
     raise
