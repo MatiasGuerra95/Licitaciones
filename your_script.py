@@ -79,7 +79,8 @@ try:
     worksheet_hoja10 = get_worksheet_with_retry(sh, 7)  # Hoja Ranking no relativo
     worksheet_hoja3 = get_worksheet_with_retry(sh, 2)  # Hoja Rubros
     worksheet_hoja2 = get_worksheet_with_retry(sh, 1)  # Hoja Ranking
-    
+    worksheet_hoja4 = get_worksheet_with_retry(sh, 3) #Hoja Clientes
+
 except Exception as e:
     logging.error(f"Error al obtener una o más hojas: {e}")
     raise
@@ -329,8 +330,8 @@ def obtener_rubros_y_productos():
 def obtener_puntaje_clientes():
     try:
         # Asumiendo que los nombres de clientes están en la columna D y los estados en la columna E
-        clientes = worksheet_hoja3.col_values(4)[3:]  # D4 hacia abajo (nombres de los clientes)
-        estados = worksheet_hoja3.col_values(5)[3:]  # E4 hacia abajo (estados: "vigente" o "no vigente")
+        clientes = worksheet_hoja4.col_values(4)[3:]  # D4 hacia abajo (nombres de los clientes)
+        estados = worksheet_hoja4.col_values(5)[3:]  # E4 hacia abajo (estados: "vigente" o "no vigente")
     
         # Crear un diccionario {cliente: estado}
         puntaje_clientes = {}
