@@ -74,12 +74,12 @@ except Exception as e:
 # Seleccionar las hojas necesarias con manejo de errores
 try:
     worksheet_hoja1 = get_worksheet_with_retry(sh, 0)  # Hoja Inicio
-    worksheet_hoja7 = get_worksheet_with_retry(sh, 6)  # Hoja Licitaciones Activas y Duplicadas
-    worksheet_hoja6 = get_worksheet_with_retry(sh, 5)  # Hoja Seleccion
-    worksheet_hoja10 = get_worksheet_with_retry(sh, 7)  # Hoja Ranking no relativo
-    worksheet_hoja3 = get_worksheet_with_retry(sh, 2)  # Hoja Rubros
     worksheet_hoja2 = get_worksheet_with_retry(sh, 1)  # Hoja Ranking
+    worksheet_hoja3 = get_worksheet_with_retry(sh, 2)  # Hoja Rubros
     worksheet_hoja4 = get_worksheet_with_retry(sh, 3) #Hoja Clientes
+    worksheet_hoja6 = get_worksheet_with_retry(sh, 5)  # Hoja Seleccion
+    worksheet_hoja7 = get_worksheet_with_retry(sh, 6)  # Hoja Licitaciones Activas y Duplicadas
+    worksheet_hoja10 = get_worksheet_with_retry(sh, 7)  # Hoja Ranking no relativo
 
 except Exception as e:
     logging.error(f"Error al obtener una o más hojas: {e}")
@@ -87,8 +87,9 @@ except Exception as e:
 
 # Extraer las fechas de las celdas C6 y C7
 try:
-    fecha_min_publicacion = worksheet_hoja1.acell('C6').value  # Fecha mínima de publicación
-    fecha_min_cierre = worksheet_hoja1.acell('C7').value  # Fecha mínima de cierre
+    valores_fechas = worksheet_hoja1.get('C6:C7')
+    fecha_min_publicacion = valores_fechas[0][0]
+    fecha_min_cierre = valores_fechas[1][0]
     logging.info(f"Fecha mínima de publicación: {fecha_min_publicacion}")
     logging.info(f"Fecha mínima de cierre: {fecha_min_cierre}")
 except Exception as e:
@@ -259,38 +260,22 @@ eliminar_licitaciones_seleccionadas()
 # Función para obtener las ponderaciones desde la Hoja 1
 def obtener_ponderaciones():
     try:
-        ponderaciones = {
-            'Puntaje Rubro': float(worksheet_hoja1.acell('K11').value.strip('%')) / 100,  # Remove '%' and divide by 100
-            'Puntaje Palabra': float(worksheet_hoja1.acell('K25').value.strip('%')) / 100,  # Remove '%' and divide by 100
-            'Puntaje Clientes': float(worksheet_hoja1.acell('K39').value.strip('%')) / 100,  # Remove '%' and divide by 100
-            'Puntaje Monto': float(worksheet_hoja1.acell('K43').value.strip('%')) / 100  # Remove '%' and divide by 100
+        ponderaciones = worksheet_hoja1.get('K11:K43')
+        return {
+            'Puntaje Rubro': float(ponderaciones[0][0].strip('%')) / 100,
+            'Puntaje Palabra': float(ponderaciones[14][0].strip('%')) / 100,
+            'Puntaje Clientes': float(ponderaciones[28][0].strip('%')) / 100,
+            'Puntaje Monto': float(ponderaciones[32][0].strip('%')) / 100
         }
-        logging.info(f"Ponderaciones obtenidas: {ponderaciones}")
-        return ponderaciones
     except Exception as e:
         logging.error(f"Error al obtener ponderaciones: {e}")
         raise
 
-# Función para obtener las palabras clave desde la Hoja 1
+# Función para obtener palabras clave
 def obtener_palabras_clave():
     try:
-        palabras = [
-            worksheet_hoja1.acell('C27').value, worksheet_hoja1.acell('C28').value,
-            worksheet_hoja1.acell('C29').value, worksheet_hoja1.acell('C30').value,
-            worksheet_hoja1.acell('C31').value, worksheet_hoja1.acell('C32').value,
-            worksheet_hoja1.acell('C33').value,
-            worksheet_hoja1.acell('F27').value, worksheet_hoja1.acell('F28').value,
-            worksheet_hoja1.acell('F29').value, worksheet_hoja1.acell('F30').value,
-            worksheet_hoja1.acell('F31').value, worksheet_hoja1.acell('F32').value,
-            worksheet_hoja1.acell('F33').value, worksheet_hoja1.acell('F34').value,
-            worksheet_hoja1.acell('F35').value,
-            worksheet_hoja1.acell('I27').value, worksheet_hoja1.acell('I28').value,
-            worksheet_hoja1.acell('I29').value, worksheet_hoja1.acell('I30').value,
-            worksheet_hoja1.acell('I31').value, worksheet_hoja1.acell('I32').value,
-            worksheet_hoja1.acell('I33').value, worksheet_hoja1.acell('I34').value
-        ]
-        palabras_clave = [p.lower() for p in palabras if p]
-        logging.info(f"Palabras clave obtenidas: {palabras_clave}")
+        rango_palabras = worksheet_hoja1.get('C27:I34')
+        palabras_clave = [p.lower() for fila in rango_palabras for p in fila if p]
         return palabras_clave
     except Exception as e:
         logging.error(f"Error al obtener palabras clave: {e}")
