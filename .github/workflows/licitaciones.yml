@@ -28,5 +28,13 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
         run: python your_script.py
 
+      - name: Guardar archivo de log
+        if: always()  # Esto asegura que el paso se ejecute incluso si otros pasos fallan
+        uses: actions/upload-artifact@v2
+        with:
+          name: logs
+          path: your_script.log  # Asegúrate de que este nombre coincida con el nombre del archivo .log que estás generando
+      
+
       - name: Output Success Message
         run: echo "Script ejecutado correctamente en GitHub Actions."
