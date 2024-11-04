@@ -557,9 +557,14 @@ def procesar_licitaciones_y_generar_ranking():
             '#', 'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Link', 
             'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
         ]]
+
+        # Asegurar formato correcto de decimales
+        df_final['Palabra'] = df_final['Palabra'].astype(float).round(2)
+        df_final['Monto'] = df_final['Monto'].astype(float).round(2)
+        df_final['Puntaje Final'] = df_final['Puntaje Final'].astype(float).round(2)        
     
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
-        data_final = [[str(x) for x in row] for row in data_final]  # Convertir todos los valores a strings
+        data_final = [[str(x) if isinstance(x, str) else x for x in row] for row in data_final]  # Convertir todos los valores a strings
     
         # Obtener el valor de la celda A1 para preservarlo
         nombre_a1 = worksheet_hoja2.acell('A1').value
