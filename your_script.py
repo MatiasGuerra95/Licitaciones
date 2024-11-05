@@ -1,5 +1,6 @@
 import pandas as pd
 import requests
+import unicodedata
 import os
 import json
 import re
@@ -46,6 +47,14 @@ sheet_id = '1EGoDJtO-b5dAGzC8LRYyZVdhHdcE2_ukgZAl-Ni9IxM'  # Reemplaza por el ID
     stop=stop_after_attempt(5),
     retry=retry_if_exception_type(APIError)
 )
+
+# Función para eliminar tildes de una cadena de texto
+def eliminar_tildes(texto):
+    if texto:
+        texto = unicodedata.normalize('NFD', texto)
+        texto = ''.join(char for char in texto if unicodedata.category(char) != 'Mn')
+    return texto
+
 def get_worksheet_with_retry(spreadsheet, index):
     try:
         worksheet = spreadsheet.get_worksheet(index)
@@ -171,8 +180,10 @@ df_mes_anterior = procesar_licitaciones(url_mes_anterior)
 
 # Concatenar ambos DataFrames en uno solo
 df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior], ignore_index=True)
-df_licitaciones['Nombre'] = df_licitaciones['Nombre'].str.lower()
-df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].str.lower()
+
+# Eliminar tildes y convertir a minúsculas en las columnas Nombre y Descripcion
+df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
+df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
 
 # Filtrar las licitaciones con 'CodigoEstado' = 5
 if 'CodigoEstado' in df_licitaciones.columns:

@@ -33,6 +33,8 @@ Este proyecto tiene como objetivo automatizar el proceso de obtención, filtrado
    - Hoja 1: Configuración inicial y valores (como fechas y ponderaciones).
    - Hoja 2: Ranking final.
    - Hoja 3: Rubros y productos.
+   - Hoja 4: Clientes vigentes y no vigentes
+   - Hoja 5: Montos 
    - Hoja 6: Lista de licitaciones seleccionadas para excluir.
    - Hoja 7: Licitaciones activas y duplicadas.
    - Hoja 10: Ranking no relativo.
@@ -58,7 +60,7 @@ Este proyecto tiene como objetivo automatizar el proceso de obtención, filtrado
 Esto descargará, procesará y subirá los datos a Google Sheets.
 
 ### Ejecución mediante GitHub Actions
-1. Usa el botón de "Ranking" en Google Sheets, el cual invoca un script de Google Apps Script que dispara el flujo de trabajo de GitHub Actions.
+1. Usa el botón de "Generar informe" en Google Sheets, el cual invoca un script de Google Apps Script que dispara el flujo de trabajo de GitHub Actions.
 2. GitHub Actions ejecutará el script your_script.py y subirá los resultados a Google Sheets.
 
 ### Detalles del flujo de trabajo de GitHub Actions
