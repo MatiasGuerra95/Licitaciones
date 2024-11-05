@@ -271,11 +271,22 @@ def obtener_ponderaciones():
         logging.error(f"Error al obtener ponderaciones: {e}")
         raise
 
-# Función para obtener palabras clave
 def obtener_palabras_clave():
     try:
-        rango_palabras = worksheet_hoja1.get('C27:I34')
-        palabras_clave = [p.lower() for fila in rango_palabras for p in fila if p]
+        # Obtener palabras clave de cada rango específico
+        palabras_c = worksheet_hoja1.get('C27:C32')
+        palabras_f = worksheet_hoja1.get('F27:F35')
+        palabras_i = worksheet_hoja1.get('I27:I34')
+        
+        # Procesar cada rango y extraer palabras no vacías en minúsculas
+        palabras_clave = [
+            p.lower() for fila in palabras_c for p in fila if p
+        ] + [
+            p.lower() for fila in palabras_f for p in fila if p
+        ] + [
+            p.lower() for fila in palabras_i for p in fila if p
+        ]
+        
         return palabras_clave
     except Exception as e:
         logging.error(f"Error al obtener palabras clave: {e}")
