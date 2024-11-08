@@ -204,8 +204,13 @@ df_licitaciones = df_licitaciones[df_licitaciones.columns.intersection(columnas_
 logging.info(f"Seleccionadas columnas importantes. Total de licitaciones: {len(df_licitaciones)}")
 
 # Convertir fechas en el DataFrame
-df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
-df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
+if 'FechaCreacion' in df_licitaciones.columns and 'FechaCierre' in df_licitaciones.columns:
+    df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
+    df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
+    df_licitaciones = df_licitaciones.dropna(subset=['FechaCreacion', 'FechaCierre'])
+    logging.info(f"Licitaciones después de eliminar fechas nulas: {len(df_licitaciones)}")
+else:
+    logging.error("Las columnas 'FechaCreacion' o 'FechaCierre' no están en el DataFrame.")
 
 # Ajustar el filtro de `FechaCreacion` para incluir todo el mes actual
 fecha_inicio_mes_actual = datetime(año_actual, mes_actual, 1)
