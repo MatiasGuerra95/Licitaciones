@@ -1,3 +1,6 @@
+import logging
+import time
+import gspread
 import pandas as pd
 import requests
 import unicodedata
@@ -7,12 +10,9 @@ import re
 from io import BytesIO
 from zipfile import ZipFile
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
-import gspread
 from google.oauth2.service_account import Credentials
 from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
 from datetime import datetime
-import logging
-import time
 
 # Configurar el registro (logging)
 logging.basicConfig(
@@ -113,9 +113,10 @@ except ValueError as e:
     logging.error(f"Formato de fecha incorrecto: {e}")
     raise
 
-# Obtener el mes y el año de la fecha mínima de publicación y cierre
-mes_actual = fecha_min_publicacion.month
-año_actual = fecha_min_publicacion.year
+# Determinar el mes y el año actuales para descargar los archivos de licitaciones del mes actual y el mes anterior
+now = datetime.now()
+mes_actual = now.month
+año_actual = now.year
 
 # Ajustar el mes y el año del mes anterior basado en la fecha mínima de publicación
 if mes_actual == 1:  # Si es enero, el mes anterior es diciembre del año pasado
