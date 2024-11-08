@@ -209,6 +209,7 @@ if 'FechaCreacion' in df_licitaciones.columns and 'FechaCierre' in df_licitacion
     df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
     df_licitaciones = df_licitaciones.dropna(subset=['FechaCreacion', 'FechaCierre'])
     logging.info(f"Licitaciones después de eliminar fechas nulas: {len(df_licitaciones)}")
+    logging.info(f"Fechas en 'FechaCreacion' antes del filtro: {df_licitaciones['FechaCreacion'].unique()}")  # Confirmación adicional
 else:
     logging.error("Las columnas 'FechaCreacion' o 'FechaCierre' no están en el DataFrame.")
 
@@ -220,11 +221,11 @@ fecha_filtro_inicio = min(fecha_min_publicacion, fecha_inicio_mes_actual)
 
 # Filtrar licitaciones para incluir solo las con `FechaCreacion` posterior o igual a `fecha_filtro_inicio`
 df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_filtro_inicio]
+logging.info(f"Fechas en 'FechaCreacion' después del filtro: {df_licitaciones['FechaCreacion'].unique()}")  # Confirmación adicional
 
 # Filtrar licitaciones por `FechaCierre`
 df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
 logging.info(f"Licitaciones filtradas: {len(df_licitaciones)} después de aplicar los filtros de publicación y cierre.")
-
 
 # Convertir el DataFrame a una lista de listas para subirlo a Google Sheets
 if not df_licitaciones.empty:
