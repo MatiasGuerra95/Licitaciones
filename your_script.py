@@ -215,13 +215,11 @@ else:
 # Ajustar el filtro de `FechaCreacion` para incluir todo el mes actual
 fecha_inicio_mes_actual = datetime(año_actual, mes_actual, 1)
 
-# Filtrar licitaciones:
-# - Si la fecha mínima de publicación es anterior al mes actual, aplica `fecha_min_publicacion`
-# - Si la fecha mínima de publicación es en el mes actual, aplica `fecha_inicio_mes_actual`
-if fecha_min_publicacion >= fecha_inicio_mes_actual:
-    df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_inicio_mes_actual]
-else:
-    df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
+# Aplicar filtro mínimo usando la fecha mínima entre el inicio del mes actual y `fecha_min_publicacion`
+fecha_filtro_inicio = min(fecha_min_publicacion, fecha_inicio_mes_actual)
+
+# Filtrar licitaciones para incluir solo las con `FechaCreacion` posterior o igual a `fecha_filtro_inicio`
+df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_filtro_inicio]
 
 # Filtrar licitaciones por `FechaCierre`
 df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
