@@ -127,8 +127,8 @@ else:
     año_anterior = año_actual
 
 # URLs para descargar los archivos de licitaciones del mes en curso y del mes anterior
-url_mes_actual = f"https://transparenciachc.blob.core.windows.net/lic-da/{año_actual}-{mes_actual}.zip"
-url_mes_anterior = f"https://transparenciachc.blob.core.windows.net/lic-da/{año_anterior}-{mes_anterior}.zip"
+url_mes_actual = f"https://transparenciachc.blob.core.windows.net/lic-da/{año_actual}-{mes_actual:02d}.zip"
+url_mes_anterior = f"https://transparenciachc.blob.core.windows.net/lic-da/{año_anterior}-{mes_anterior:02d}.zip"
 
 logging.info(f"URL del mes actual: {url_mes_actual}")
 logging.info(f"URL del mes anterior: {url_mes_anterior}")
@@ -203,15 +203,25 @@ columnas_importantes = [
 df_licitaciones = df_licitaciones[df_licitaciones.columns.intersection(columnas_importantes)]
 logging.info(f"Seleccionadas columnas importantes. Total de licitaciones: {len(df_licitaciones)}")
 
-# Filtrar las licitaciones por la FechaCreacion basadas en la fecha mínima de publicación
+# Convertir fechas en el DataFrame
 df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
-df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
-logging.info(f"Filtradas licitaciones por 'FechaCreacion' >= {fecha_min_publicacion}. Total: {len(df_licitaciones)}")
-
-# Filtrar licitaciones por FechaCierre
 df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
+
+# Ajustar el filtro de `FechaCreacion` para incluir todo el mes actual
+fecha_inicio_mes_actual = datetime(año_actual, mes_actual, 1)
+
+# Filtrar licitaciones:
+# - Si la fecha mínima de publicación es anterior al mes actual, aplica `fecha_min_publicacion`
+# - Si la fecha mínima de publicación es en el mes actual, aplica `fecha_inicio_mes_actual`
+if fecha_min_publicacion >= fecha_inicio_mes_actual:
+    df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_inicio_mes_actual]
+else:
+    df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
+
+# Filtrar licitaciones por `FechaCierre`
 df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
-logging.info(f"Filtradas licitaciones por 'FechaCierre' >= {fecha_min_cierre}. Total: {len(df_licitaciones)}")
+logging.info(f"Licitaciones filtradas: {len(df_licitaciones)} después de aplicar los filtros de publicación y cierre.")
+
 
 # Convertir el DataFrame a una lista de listas para subirlo a Google Sheets
 if not df_licitaciones.empty:
