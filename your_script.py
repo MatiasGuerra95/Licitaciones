@@ -176,6 +176,7 @@ def procesar_licitaciones(url):
         logging.error(f"Error descargando o procesando el archivo desde {url}: {e}")
         return pd.DataFrame()
     
+# Función para integrar licitaciones de SICEP y guardarlas en la Hoja 7
 def integrar_licitaciones_sicep(df_licitaciones):
     # Obtener las licitaciones desde SICEP
     df_licitaciones_sicep = login_and_scrape()
@@ -192,6 +193,18 @@ def integrar_licitaciones_sicep(df_licitaciones):
     # Añadir una columna de `CodigoExterno` si es necesaria
     if "CodigoExterno" not in df_licitaciones_sicep.columns:
         df_licitaciones_sicep["CodigoExterno"] = range(1, len(df_licitaciones_sicep) + 1)
+    
+    # Subir las licitaciones de SICEP a la Hoja 7
+    try:
+        data_sicep = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
+        data_sicep = [[str(x) for x in row] for row in data_sicep]
+        
+        worksheet_hoja7.clear()  # Limpiar Hoja 7 antes de actualizar
+        worksheet_hoja7.update('A1', data_sicep)  # Subir las licitaciones de SICEP a la Hoja 7
+        logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 7.")
+    except Exception as e:
+        logging.error(f"Error al subir las licitaciones de SICEP a la Hoja 7: {e}")
+        raise
     
     # Concatenar ambos DataFrames
     df_licitaciones = pd.concat([df_licitaciones, df_licitaciones_sicep], ignore_index=True)
