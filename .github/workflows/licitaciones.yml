@@ -36,8 +36,8 @@ jobs:
           unzip chromedriver-linux64.zip -d /usr/local/bin/
           rm chromedriver-linux64.zip
       
-      - name: Verificar instalación de ChromeDriver
-        run: ls -l /usr/local/bin/chromedriver
+      #- name: Verificar instalación de ChromeDriver
+       # run: ls -l /usr/local/bin/chromedriver
 
           
       - name: Correr Script Licitaciones
