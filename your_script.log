@@ -53,3 +53,4 @@
 2024-10-29 11:58:31,001 - INFO - Top 100 licitaciones ordenadas por 'Puntaje Total SUMAPRODUCTO'.
 2024-10-29 11:58:31,697 - INFO - Hoja actualizada exitosamente en el rango A3.
 2024-10-29 11:58:31,697 - INFO - Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.
+2024-11-08 15:00:47,941 - ERROR - La variable de entorno 'GOOGLE_APPLICATION_CREDENTIALS_JSON' no está definida.

@@ -23,9 +23,25 @@ jobs:
           python -m pip install --upgrade pip 
           pip install -r requirements.txt
 
+      # Instalar Google Chrome
+      - name: Install Google Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+          
+      # Descargar e instalar ChromeDriver
+      - name: Set up ChromeDriver
+        run: |
+          CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3 | cut -d '.' -f 1)
+          CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE_$CHROME_VERSION)
+          wget https://chromedriver.storage.googleapis.com/$CHROMEDRIVER_VERSION/chromedriver_linux64.zip
+          unzip chromedriver_linux64.zip -d /usr/local/bin/
+          
       - name: Correr Script Licitaciones
         env:
           GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
+          PORTAL_USER: ${{ secrets.PORTAL_USER }}          # Usuario de SICEP
+          PORTAL_PASSWORD: ${{ secrets.PORTAL_PASSWORD }}  # Contraseña de SICEP
         run: python your_script.py
 
       - name: Guardar archivo de log

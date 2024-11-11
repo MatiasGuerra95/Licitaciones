@@ -13,6 +13,7 @@ from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_excep
 from google.oauth2.service_account import Credentials
 from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
 from datetime import datetime
+from extractores.sicep import login_and_scrape
 
 # Configurar el registro (logging)
 logging.basicConfig(
@@ -174,6 +175,29 @@ def procesar_licitaciones(url):
     except Exception as e:
         logging.error(f"Error descargando o procesando el archivo desde {url}: {e}")
         return pd.DataFrame()
+    
+def integrar_licitaciones_sicep(df_licitaciones):
+    # Obtener las licitaciones desde SICEP
+    df_licitaciones_sicep = login_and_scrape()
+    
+    # Ajustar columnas para que coincidan con el esquema del `df_licitaciones`
+    df_licitaciones_sicep = df_licitaciones_sicep.rename(columns={
+        "Titulo": "Nombre",
+        "FechaPublicacion": "FechaCreacion",
+        "FechaCierre": "FechaCierre",
+        "Descripcion": "Descripcion",
+        "Link": "Link"
+    })
+    
+    # Añadir una columna de `CodigoExterno` si es necesaria
+    if "CodigoExterno" not in df_licitaciones_sicep.columns:
+        df_licitaciones_sicep["CodigoExterno"] = range(1, len(df_licitaciones_sicep) + 1)
+    
+    # Concatenar ambos DataFrames
+    df_licitaciones = pd.concat([df_licitaciones, df_licitaciones_sicep], ignore_index=True)
+    logging.info("Licitaciones de SICEP integradas exitosamente.")
+    return df_licitaciones
+
 
 # Descargar y procesar los archivos de licitaciones del mes actual y el mes anterior
 df_mes_actual = procesar_licitaciones(url_mes_actual)
@@ -181,6 +205,9 @@ df_mes_anterior = procesar_licitaciones(url_mes_anterior)
 
 # Concatenar ambos DataFrames en uno solo
 df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior], ignore_index=True)
+
+# Integrar licitaciones de SICEP
+df_licitaciones = integrar_licitaciones_sicep(df_licitaciones)
 
 # Eliminar tildes y convertir a minúsculas en las columnas Nombre y Descripcion
 df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
@@ -201,6 +228,12 @@ columnas_importantes = [
     'Tipo', 'CantidadReclamos', 'TiempoDuracionContrato', 'Link'
 ]
 df_licitaciones = df_licitaciones[df_licitaciones.columns.intersection(columnas_importantes)]
+
+# Completa con columnas faltantes si alguna está ausente
+for columna in columnas_importantes:
+    if columna not in df_licitaciones.columns:
+        df_licitaciones[columna] = None  # Llena con valores vacíos
+
 logging.info(f"Seleccionadas columnas importantes. Total de licitaciones: {len(df_licitaciones)}")
 
 # Convertir fechas en el DataFrame

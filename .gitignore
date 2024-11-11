@@ -5,4 +5,6 @@ __pycache__/
 api-mercado-publico-f87966d2dfce.json
 api-mercado-publico-f87966d2dfce.json:Zone.Identifier
 token.txt
-script.py
+.env
+/chromedriver_folder
+chromedriver.zip
