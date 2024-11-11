@@ -184,8 +184,8 @@ def integrar_licitaciones_sicep(df_licitaciones):
     # Ajustar columnas para que coincidan con el esquema del `df_licitaciones`
     df_licitaciones_sicep = df_licitaciones_sicep.rename(columns={
         "Titulo": "Nombre",
-        "FechaPublicacion": "FechaCreacion",
-        "FechaCierre": "FechaCierre",
+        "Fecha de Publicacion": "FechaCreacion",
+        "Fecha de Cierre": "FechaCierre",
         "Descripcion": "Descripcion",
         "Link": "Link"
     })
@@ -205,6 +205,8 @@ def integrar_licitaciones_sicep(df_licitaciones):
     except Exception as e:
         logging.error(f"Error al subir las licitaciones de SICEP a la Hoja 7: {e}")
         raise
+        # Log de nombres de columnas
+    logging.info(f"Nombres de las columnas de SICEP: {df_licitaciones_sicep.columns.tolist()}")
     
     # Concatenar ambos DataFrames
     df_licitaciones = pd.concat([df_licitaciones, df_licitaciones_sicep], ignore_index=True)
