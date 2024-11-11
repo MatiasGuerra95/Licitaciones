@@ -514,7 +514,7 @@ def procesar_licitaciones_y_generar_ranking():
     
         # Calcular el puntaje por palabras y rubros-productos
         df_licitaciones_agrupado['Puntaje Palabra'] = df_licitaciones_agrupado.apply(
-            lambda row: calcular_puntaje_palabra(row['Nombre'], row['Descripcion'], palabras_clave),
+            lambda row: calcular_puntaje_palabra(row['Nombre'], row['Descripcion'], palabras_clave, lista_negra),
             axis=1
         )
         logging.info("Puntaje por palabras clave calculado.")
