@@ -373,15 +373,29 @@ def obtener_puntaje_clientes():
         logging.error(f"Error al obtener puntaje de clientes: {e}")
         raise
 
+lista_negra = {
+    'humano': ['consumo', 'alimentación']
+    # Agrega más combinaciones según sea necesario
+}
+
 # Función para calcular el puntaje por palabras clave
-def calcular_puntaje_palabra(nombre, descripcion, palabras_clave):
+def calcular_puntaje_palabra(nombre, descripcion, palabras_clave, lista_negra):
     puntaje_palabra = 0
     texto = f"{nombre.lower()} {descripcion.lower()}"
     palabras_texto = set(re.findall(r'\b\w+\b', texto))
     for palabra_clave in palabras_clave:
         if palabra_clave in palabras_texto:
             puntaje_palabra += 10
-    return puntaje_palabra
+    
+ # Restar puntos si se encuentran palabras de la lista negra en contexto con palabras clave
+    for palabra_clave, interferentes in lista_negra.items():
+        if palabra_clave in palabras_texto:
+            for interferente in interferentes:
+                if interferente in palabras_texto:
+                    logging.info(f"Interferencia detectada: '{interferente}' junto con '{palabra_clave}'")
+                    puntaje_palabra -= 5  # Ajusta la penalización según la importancia
+    
+    return max(puntaje_palabra, 0)  # Asegura que no sea negativo
 
 # Función para calcular el puntaje por rubros y productos
 def calcular_puntaje_rubro(row, rubros_y_productos):
