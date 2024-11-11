@@ -19,10 +19,17 @@ PASSWORD = os.getenv("PORTAL_PASSWORD")
 
 def setup_driver():
     options = Options()
-    # options.add_argument("--headless")  # Puedes comentar esta línea si quieres ver el navegador
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    service = Service(executable_path="/usr/local/bin/chromedriver")
+    options.add_argument("--headless")  # Ejecutar en modo sin interfaz gráfica
+    options.add_argument("--no-sandbox")  # Requerido para entornos de CI/CD
+    options.add_argument("--disable-dev-shm-usage")  # Usar /dev/shm para evitar problemas de memoria compartida
+    options.add_argument("--disable-gpu")  # Desactivar GPU en caso de problemas gráficos
+    options.add_argument("--remote-debugging-port=9222")  # Configuración de puerto para DevTools
+    options.add_argument("--window-size=1920,1080")  # Definir tamaño de ventana
+
+    # Ruta de ChromeDriver
+    service = Service("/usr/local/bin/chromedriver")
+
+    # Crear el objeto WebDriver
     driver = webdriver.Chrome(service=service, options=options)
     return driver
 
