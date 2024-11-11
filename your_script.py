@@ -378,24 +378,28 @@ lista_negra = {
     # Agrega más combinaciones según sea necesario
 }
 
-# Función para calcular el puntaje por palabras clave
 def calcular_puntaje_palabra(nombre, descripcion, palabras_clave, lista_negra):
     puntaje_palabra = 0
     texto = f"{nombre.lower()} {descripcion.lower()}"
     palabras_texto = set(re.findall(r'\b\w+\b', texto))
+    
+    # Aplicar lista negra
     for palabra_clave in palabras_clave:
         if palabra_clave in palabras_texto:
-            puntaje_palabra += 10
-    
- # Restar puntos si se encuentran palabras de la lista negra en contexto con palabras clave
-    for palabra_clave, interferentes in lista_negra.items():
-        if palabra_clave in palabras_texto:
-            for interferente in interferentes:
-                if interferente in palabras_texto:
-                    logging.info(f"Interferencia detectada: '{interferente}' junto con '{palabra_clave}'")
-                    puntaje_palabra -= 5  # Ajusta la penalización según la importancia
-    
-    return max(puntaje_palabra, 0)  # Asegura que no sea negativo
+            penalizado = False  # Variable para saber si se penalizó
+            # Verificar si hay palabras de interferencia antes de sumar puntos
+            if palabra_clave in lista_negra:
+                for palabra_interferencia in lista_negra[palabra_clave]:
+                    if palabra_interferencia in texto:
+                        puntaje_palabra -= 10  # Aplica penalización
+                        logging.info(f"Penalización aplicada: '{palabra_interferencia} {palabra_clave}' en '{texto}'")
+                        penalizado = True
+                        break
+            if not penalizado:
+                puntaje_palabra += 10
+                logging.info(f"Puntos sumados por palabra clave: '{palabra_clave}' en '{texto}'")
+    return puntaje_palabra
+
 
 # Función para calcular el puntaje por rubros y productos
 def calcular_puntaje_rubro(row, rubros_y_productos):
