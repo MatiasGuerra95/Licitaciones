@@ -477,7 +477,7 @@ def procesar_licitaciones_y_generar_ranking():
             'INSTITUTO NACIONAL DE REHABILITACION', 'INSTITUTO NACIONAL DEL CANCER',
             'INSTITUTO NACIONAL DEL TORAX', 'INSTITUTO PSIQUIÁTRICO',
             'SERV NAC SALUD', 'SERV SALUD', 'SERVICIO DE SALUD',
-            'SERVICIO NACIONAL DE SALUD', 'SERVICIO SALUD'
+            'SERVICIO NACIONAL DE SALUD', 'SERVICIO SALUD', 'INSTITUTO DE DESARROLLO AGROPECUARIO'
         ]
     
         regex_excluir = '|'.join(salud_excluir)
