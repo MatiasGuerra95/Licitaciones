@@ -190,29 +190,30 @@ def integrar_licitaciones_sicep(df_licitaciones):
         "Link": "Link"
     })
 
-    # Definir el esquema de columnas en el orden requerido para la Hoja 7
+    # Esquema de columnas que debe seguir el orden de la Hoja 7
     columnas_obligatorias = [
         "Link", "CodigoExterno", "Nombre", "Descripcion", "CodigoEstado",
         "NombreOrganismo", "Tipo", "CantidadReclamos", "FechaCreacion",
         "FechaCierre", "TiempoDuracionContrato", "Rubro3", "Nombre producto genrico"
     ]
-    
-    # Asegurarse de que el DataFrame de SICEP tenga todas las columnas obligatorias
+
+    # Completar con columnas faltantes y reordenar según el esquema
     for columna in columnas_obligatorias:
         if columna not in df_licitaciones_sicep.columns:
-            df_licitaciones_sicep[columna] = None  # Rellenar las columnas faltantes con None
-    
-    # Reordenar las columnas según el orden especificado
+            df_licitaciones_sicep[columna] = None
+
+    # Reordenar las columnas en df_licitaciones_sicep
     df_licitaciones_sicep = df_licitaciones_sicep[columnas_obligatorias]
 
     # Subir las licitaciones de SICEP a la Hoja 7
     try:
+        # Convertir el DataFrame en una lista para cargarla a Google Sheets
         data_sicep = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
-        data_sicep = [[str(x) for x in row] for row in data_sicep]
-        
-        worksheet_hoja7.clear()  # Limpiar Hoja 7 antes de actualizar
-        worksheet_hoja7.update('A1', data_sicep)  # Subir las licitaciones de SICEP a la Hoja 7
-        logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 7 con el orden de columnas requerido.")
+        data_sicep = [[str(x) if x is not None else '' for x in row] for row in data_sicep]
+
+        worksheet_hoja7.clear()  # Limpiar la hoja antes de cargar nuevos datos
+        worksheet_hoja7.update('A1', data_sicep)  # Subir los datos de SICEP
+        logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 7.")
     except Exception as e:
         logging.error(f"Error al subir las licitaciones de SICEP a la Hoja 7: {e}")
         raise
@@ -222,6 +223,7 @@ def integrar_licitaciones_sicep(df_licitaciones):
     logging.info(f"Cantidad de filas en df_licitaciones después de concatenar: {len(df_licitaciones)}")
 
     return df_licitaciones
+
 
 
 
