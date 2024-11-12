@@ -183,7 +183,7 @@ def actualizar_google_sheets(worksheet, data_to_upload):
     worksheet.update('A1', data_to_upload)  # Subir todos los datos juntos
 
 # Función para subir las licitaciones de SICEP a la nueva hoja
-def integrar_licitaciones_sicep():
+def integrar_licitaciones_sicep(df_licitaciones):
     # Obtener y renombrar columnas de SICEP
     df_licitaciones_sicep = login_and_scrape().rename(columns={
         "Titulo": "Nombre",
