@@ -582,36 +582,6 @@ def procesar_licitaciones_y_generar_ranking():
         regex_excluir = '|'.join(salud_excluir)
         df_licitaciones = df_licitaciones[~df_licitaciones['NombreOrganismo'].str.contains(regex_excluir, case=False, na=False)]
         logging.info(f"Filtradas licitaciones relacionadas con salud. Total: {len(df_licitaciones)}")
-
-        # Verificar cuántas licitaciones de SICEP siguen en el DataFrame después del filtro de salud
-        sicep_count_after_filter = df_licitaciones[df_licitaciones['Operacion'] == 'SICEP'].shape[0]
-        logging.info(f"Cantidad de licitaciones de SICEP después del filtro de salud: {sicep_count_after_filter}")
-
-        # Convertir el DataFrame a una lista de listas para subirlo a Google Sheets
-        if not df_licitaciones.empty:
-            data_to_upload = [df_licitaciones.columns.values.tolist()] + df_licitaciones.values.tolist()
-            data_to_upload = [[str(x) for x in row] for row in data_to_upload]  # Convertir todos los valores a strings
-            try:
-                # Añade este log antes de borrar el contenido de la Hoja 7
-                logging.info("Intentando borrar el contenido de la Hoja 7 antes de actualizar.")
-                
-                # Borrar el contenido actual de la Hoja 7 antes de actualizar
-                worksheet_hoja7.clear()
-                
-                # Añade este log después de borrar para confirmar el borrado exitoso
-                logging.info("Contenido de la Hoja 7 borrado exitosamente.")
-                
-                # Subir los datos a la Hoja 7
-                worksheet_hoja7.update(range_name='A1', values=data_to_upload)
-                logging.info("Datos actualizados en Google Sheets exitosamente en la Hoja 7.")
-            except APIError as e:
-                logging.error(f"APIError al actualizar la Hoja 7: {e}")
-                raise
-            except Exception as e:
-                logging.error(f"Error al actualizar la Hoja 7: {e}")
-                raise
-        else:
-            logging.warning("No se procesaron licitaciones para subir a Google Sheets.")
     
         # Agrupar por 'CodigoExterno' para combinar rubros, productos, etc.
         df_licitaciones_agrupado = df_licitaciones.groupby('CodigoExterno').agg({
