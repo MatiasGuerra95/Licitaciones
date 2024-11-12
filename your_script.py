@@ -181,7 +181,7 @@ def integrar_licitaciones_sicep(df_licitaciones):
     # Obtener las licitaciones desde SICEP
     df_licitaciones_sicep = login_and_scrape()
     
-    # Ajustar columnas para que coincidan con el esquema del `df_licitaciones`
+    # Renombrar las columnas de SICEP para que coincidan con el esquema
     df_licitaciones_sicep = df_licitaciones_sicep.rename(columns={
         "Titulo": "Nombre",
         "Fecha de Publicacion": "FechaCreacion",
@@ -190,9 +190,17 @@ def integrar_licitaciones_sicep(df_licitaciones):
         "Link": "Link"
     })
     
-    # Añadir una columna de `CodigoExterno` si es necesaria
-    if "CodigoExterno" not in df_licitaciones_sicep.columns:
-        df_licitaciones_sicep["CodigoExterno"] = range(1, len(df_licitaciones_sicep) + 1)
+    # Definir las columnas obligatorias
+    columnas_obligatorias = [
+        "Link", "CodigoExterno", "Nombre", "Descripcion", "CodigoEstado",
+        "NombreOrganismo", "Tipo", "CantidadReclamos", "FechaCreacion",
+        "FechaCierre", "TiempoDuracionContrato", "Rubro3", "Nombre producto genrico"
+    ]
+    
+    # Asegurarse de que el DataFrame de SICEP tenga todas las columnas obligatorias
+    for columna in columnas_obligatorias:
+        if columna not in df_licitaciones_sicep.columns:
+            df_licitaciones_sicep[columna] = None  # Rellenar las columnas faltantes con None
     
     # Subir las licitaciones de SICEP a la Hoja 7
     try:
@@ -205,8 +213,9 @@ def integrar_licitaciones_sicep(df_licitaciones):
     except Exception as e:
         logging.error(f"Error al subir las licitaciones de SICEP a la Hoja 7: {e}")
         raise
-        # Log de nombres de columnas
-    logging.info(f"Nombres de las columnas de SICEP: {df_licitaciones_sicep.columns.tolist()}")
+    
+    # Log de nombres de columnas
+    logging.info(f"Nombres de las columnas de SICEP después de agregar columnas faltantes: {df_licitaciones_sicep.columns.tolist()}")
     
     # Concatenar ambos DataFrames
     df_licitaciones = pd.concat([df_licitaciones, df_licitaciones_sicep], ignore_index=True)
