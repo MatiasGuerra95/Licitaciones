@@ -209,7 +209,7 @@ def integrar_licitaciones_sicep(df_licitaciones):
     
     try:
         worksheet_hoja11.clear()  # Limpiar Hoja de SICEP antes de actualizar
-        worksheet_hoja11.update('A1', data_to_upload)
+        worksheet_hoja11.update(range_name='A1', values=data_to_upload)
         logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja de SICEP.")
     except Exception as e:
         logging.error(f"Error al subir licitaciones de SICEP a la Hoja de SICEP: {e}")
