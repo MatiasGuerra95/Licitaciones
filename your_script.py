@@ -208,8 +208,8 @@ def integrar_licitaciones_sicep():
     data_to_upload = [[str(x) for x in row] for row in data_to_upload]
     
     try:
-        worksheet_hoja_sicep.clear()  # Limpiar Hoja de SICEP antes de actualizar
-        worksheet_hoja_sicep.update('A1', data_to_upload)
+        worksheet_hoja11.clear()  # Limpiar Hoja de SICEP antes de actualizar
+        worksheet_hoja11.update('A1', data_to_upload)
         logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja de SICEP.")
     except Exception as e:
         logging.error(f"Error al subir licitaciones de SICEP a la Hoja de SICEP: {e}")
@@ -223,7 +223,7 @@ def cargar_datos_para_ranking():
     logging.info(f"Licitaciones de Mercado Público cargadas. Total: {len(df_licitaciones_mp)}")
 
     # Cargar datos de SICEP desde la nueva Hoja de SICEP
-    licitaciones_sicep = worksheet_hoja_sicep.get_all_values()
+    licitaciones_sicep = worksheet_hoja11.get_all_values()
     df_licitaciones_sicep = pd.DataFrame(licitaciones_sicep[1:], columns=licitaciones_sicep[0])
     logging.info(f"Licitaciones de SICEP cargadas. Total: {len(df_licitaciones_sicep)}")
 
