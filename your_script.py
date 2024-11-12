@@ -216,11 +216,19 @@ def integrar_licitaciones_sicep(df_licitaciones):
     
     # Log de nombres de columnas
     logging.info(f"Nombres de las columnas de SICEP después de agregar columnas faltantes: {df_licitaciones_sicep.columns.tolist()}")
+
+    # Log de verificación de columnas y muestra de las primeras filas
+    logging.info(f"Columnas de df_licitaciones_sicep después de rellenar: {df_licitaciones_sicep.columns.tolist()}")
+    logging.info(f"Primeras filas de df_licitaciones_sicep:\n{df_licitaciones_sicep.head()}")
     
     # Concatenar ambos DataFrames
     df_licitaciones = pd.concat([df_licitaciones, df_licitaciones_sicep], ignore_index=True)
     logging.info("Licitaciones de SICEP integradas exitosamente.")
     return df_licitaciones
+
+    # Verificación después de concatenar
+logging.info(f"Columnas de df_licitaciones después de concatenar: {df_licitaciones.columns.tolist()}")
+logging.info(f"Total de licitaciones después de integrar SICEP: {len(df_licitaciones)}")
 
 
 # Descargar y procesar los archivos de licitaciones del mes actual y el mes anterior
