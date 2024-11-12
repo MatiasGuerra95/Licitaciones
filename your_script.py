@@ -206,14 +206,10 @@ def integrar_licitaciones_sicep(df_licitaciones):
     # Subir SICEP a la Hoja de SICEP (Hoja 11) en lugar de Hoja 7
     data_to_upload = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
     data_to_upload = [[str(x) for x in row] for row in data_to_upload]
-    
-    try:
-        worksheet_hoja11.clear()  # Limpiar Hoja de SICEP antes de actualizar
-        worksheet_hoja11.update(range_name='A1', values=data_to_upload)
-        logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja de SICEP.")
-    except Exception as e:
-        logging.error(f"Error al subir licitaciones de SICEP a la Hoja de SICEP: {e}")
-        raise
+    worksheet_hoja11.clear()  # Limpiar antes de actualizar
+    worksheet_hoja11.update(range_name='A1', values=data_to_upload)
+    logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 11.")
+    return df_licitaciones_sicep
 
 # Función para cargar licitaciones de ambas fuentes para el ranking
 def cargar_datos_para_ranking():
@@ -537,7 +533,7 @@ def actualizar_hoja(worksheet, rango, datos):
         raise
 
 # Función para procesar las licitaciones y generar un ranking ajustado para que los puntajes relativos sumen 100
-def procesar_licitaciones_y_generar_ranking():
+def procesar_licitaciones_y_generar_ranking(df_licitaciones):
     try:
         # Cargar los datos consolidados de ambas hojas
         df_licitaciones = cargar_datos_para_ranking()
@@ -709,4 +705,4 @@ def procesar_licitaciones_y_generar_ranking():
 
 # Ejecutar la función principal
 integrar_licitaciones_sicep()
-procesar_licitaciones_y_generar_ranking()
+procesar_licitaciones_y_generar_ranking(df_licitaciones)
