@@ -202,6 +202,10 @@ def integrar_licitaciones_sicep(df_licitaciones):
         if columna not in df_licitaciones_sicep.columns:
             df_licitaciones_sicep[columna] = None
 
+# Convierte a minúsculas y elimina tildes
+    df_licitaciones_sicep['Nombre'] = df_licitaciones_sicep['Nombre'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
+    df_licitaciones_sicep['Descripcion'] = df_licitaciones_sicep['Descripcion'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
+
     # Reordenar las columnas en df_licitaciones_sicep
     df_licitaciones_sicep = df_licitaciones_sicep[columnas_obligatorias]
 
