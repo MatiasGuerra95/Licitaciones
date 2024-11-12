@@ -182,13 +182,10 @@ def actualizar_google_sheets(worksheet, data_to_upload):
     worksheet.clear()  # Limpiar hoja antes de subir los datos
     worksheet.update('A1', data_to_upload)  # Subir todos los datos juntos
 
-# Función para integrar licitaciones de SICEP y guardarlas en el DataFrame general
-def integrar_licitaciones_sicep(df_licitaciones):
-    # Obtener las licitaciones desde SICEP
-    df_licitaciones_sicep = login_and_scrape()
-
-    # Renombrar las columnas de SICEP para que coincidan con el esquema
-    df_licitaciones_sicep = df_licitaciones_sicep.rename(columns={
+# Función para integrar y subir licitaciones de SICEP
+def integrar_licitaciones_sicep():
+    # Obtener y renombrar columnas de SICEP
+    df_licitaciones_sicep = login_and_scrape().rename(columns={
         "Titulo": "Nombre",
         "Fecha de Publicacion": "FechaCreacion",
         "Fecha de Cierre": "FechaCierre",
@@ -196,44 +193,23 @@ def integrar_licitaciones_sicep(df_licitaciones):
         "Link": "Link"
     })
 
-    # Esquema de columnas que debe seguir el orden de la Hoja 7
+    # Asegurar columnas obligatorias
     columnas_obligatorias = [
         "Link", "CodigoExterno", "Nombre", "Descripcion", "CodigoEstado",
         "NombreOrganismo", "Tipo", "CantidadReclamos", "FechaCreacion",
         "FechaCierre", "TiempoDuracionContrato", "Rubro3", "Nombre producto genrico"
     ]
-
-    # Completar con columnas faltantes y reordenar según el esquema
     for columna in columnas_obligatorias:
         if columna not in df_licitaciones_sicep.columns:
             df_licitaciones_sicep[columna] = None
 
-    # Convertir a minúsculas y eliminar tildes
-    df_licitaciones_sicep['Nombre'] = df_licitaciones_sicep['Nombre'].apply(
-        lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x
-    )
-    df_licitaciones_sicep['Descripcion'] = df_licitaciones_sicep['Descripcion'].apply(
-        lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x
-    )
+    # Subir SICEP a Google Sheets
+    data_to_upload = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
+    data_to_upload = [[str(x) for x in row] for row in data_to_upload]
+    actualizar_google_sheets(worksheet_hoja7, data_to_upload)
+    logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 7.")
 
-    # Reordenar las columnas en df_licitaciones_sicep
-    df_licitaciones_sicep = df_licitaciones_sicep[columnas_obligatorias]
-
-    # Concatenar licitaciones de SICEP con el DataFrame principal
-    df_licitaciones = pd.concat([df_licitaciones, df_licitaciones_sicep], ignore_index=True)
-    logging.info(f"Cantidad de filas en df_licitaciones después de concatenar: {len(df_licitaciones)}")
-
-    # Subir el DataFrame completo a la hoja 7 en un solo paso
-    try:
-        data_to_upload = [df_licitaciones.columns.values.tolist()] + df_licitaciones.values.tolist()
-        data_to_upload = [[str(x) for x in row] for row in data_to_upload]  # Convertir todos los valores a strings
-        actualizar_google_sheets(worksheet_hoja7, data_to_upload)
-        logging.info("Todas las licitaciones subidas exitosamente a la Hoja 7.")
-    except Exception as e:
-        logging.error(f"Error al subir todas las licitaciones a la Hoja 7: {e}")
-        raise
-
-    return df_licitaciones
+    return df_licitaciones_sicep
 
 # Descargar y procesar los archivos de licitaciones del mes actual y el mes anterior
 df_mes_actual = procesar_licitaciones(url_mes_actual)
