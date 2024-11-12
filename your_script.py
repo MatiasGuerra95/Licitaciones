@@ -238,7 +238,7 @@ df_mes_anterior = procesar_licitaciones(url_mes_anterior)
 df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior], ignore_index=True)
 
 # Integrar licitaciones de SICEP
-df_licitaciones = integrar_licitaciones_sicep(df_licitaciones)
+df_licitaciones = integrar_licitaciones_sicep()
 
 # Eliminar tildes y convertir a minúsculas en las columnas Nombre y Descripcion
 df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
@@ -533,7 +533,7 @@ def actualizar_hoja(worksheet, rango, datos):
         raise
 
 # Función para procesar las licitaciones y generar un ranking ajustado para que los puntajes relativos sumen 100
-def procesar_licitaciones_y_generar_ranking(df_licitaciones):
+def procesar_licitaciones_y_generar_ranking():
     try:
         # Cargar los datos consolidados de ambas hojas
         df_licitaciones = cargar_datos_para_ranking()
@@ -695,7 +695,6 @@ def procesar_licitaciones_y_generar_ranking(df_licitaciones):
         worksheet_hoja2.clear()
         worksheet_hoja2.update('A1', [[nombre_a1]])  # Restaurar el valor original de A1
 
-
         actualizar_hoja(worksheet_hoja2, 'A3', data_final)
         logging.info("Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.")
     
@@ -705,4 +704,4 @@ def procesar_licitaciones_y_generar_ranking(df_licitaciones):
 
 # Ejecutar la función principal
 integrar_licitaciones_sicep()
-procesar_licitaciones_y_generar_ranking(df_licitaciones)
+procesar_licitaciones_y_generar_ranking()
