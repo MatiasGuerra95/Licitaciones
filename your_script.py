@@ -176,40 +176,43 @@ def procesar_licitaciones(url):
         logging.error(f"Error descargando o procesando el archivo desde {url}: {e}")
         return pd.DataFrame()
     
-# Función con reintentos para actualizar Google Sheets
-@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
-def actualizar_google_sheets(worksheet, data_to_upload):
-    worksheet.clear()  # Limpiar hoja antes de subir los datos
-    worksheet.update('A1', data_to_upload)  # Subir todos los datos juntos
-
-# Función para integrar y subir licitaciones de SICEP
-def integrar_licitaciones_sicep():
-    # Obtener y renombrar columnas de SICEP
-    df_licitaciones_sicep = login_and_scrape().rename(columns={
+# Función para integrar licitaciones de SICEP y guardarlas en la Hoja 7
+def integrar_licitaciones_sicep(df_licitaciones):
+    # Obtener las licitaciones desde SICEP
+    df_licitaciones_sicep = login_and_scrape()
+    
+    # Ajustar columnas para que coincidan con el esquema del df_licitaciones
+    df_licitaciones_sicep = df_licitaciones_sicep.rename(columns={
         "Titulo": "Nombre",
         "Fecha de Publicacion": "FechaCreacion",
         "Fecha de Cierre": "FechaCierre",
         "Descripcion": "Descripcion",
         "Link": "Link"
     })
+    
+    # Añadir una columna de CodigoExterno si es necesaria
+    if "CodigoExterno" not in df_licitaciones_sicep.columns:
+        df_licitaciones_sicep["CodigoExterno"] = range(1, len(df_licitaciones_sicep) + 1)
+    
+    # Subir las licitaciones de SICEP a la Hoja 7
+    try:
+        data_sicep = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
+        data_sicep = [[str(x) for x in row] for row in data_sicep]
+        
+        worksheet_hoja7.clear()  # Limpiar Hoja 7 antes de actualizar
+        worksheet_hoja7.update('A1', data_sicep)  # Subir las licitaciones de SICEP a la Hoja 7
+        logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 7.")
+    except Exception as e:
+        logging.error(f"Error al subir las licitaciones de SICEP a la Hoja 7: {e}")
+        raise
+        # Log de nombres de columnas
+    logging.info(f"Nombres de las columnas de SICEP: {df_licitaciones_sicep.columns.tolist()}")
+    
+    # Concatenar ambos DataFrames
+    df_licitaciones = pd.concat([df_licitaciones, df_licitaciones_sicep], ignore_index=True)
+    logging.info("Licitaciones de SICEP integradas exitosamente.")
+    return df_licitaciones
 
-    # Asegurar columnas obligatorias
-    columnas_obligatorias = [
-        "Link", "CodigoExterno", "Nombre", "Descripcion", "CodigoEstado",
-        "NombreOrganismo", "Tipo", "CantidadReclamos", "FechaCreacion",
-        "FechaCierre", "TiempoDuracionContrato", "Rubro3", "Nombre producto genrico"
-    ]
-    for columna in columnas_obligatorias:
-        if columna not in df_licitaciones_sicep.columns:
-            df_licitaciones_sicep[columna] = None
-
-    # Subir SICEP a Google Sheets
-    data_to_upload = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
-    data_to_upload = [[str(x) for x in row] for row in data_to_upload]
-    actualizar_google_sheets(worksheet_hoja7, data_to_upload)
-    logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 7.")
-
-    return df_licitaciones_sicep
 
 # Descargar y procesar los archivos de licitaciones del mes actual y el mes anterior
 df_mes_actual = procesar_licitaciones(url_mes_actual)
@@ -232,13 +235,6 @@ if 'CodigoEstado' in df_licitaciones.columns:
 else:
     df_licitaciones = pd.DataFrame()  # Crear un DataFrame vacío en caso de error
     logging.warning("'CodigoEstado' no está en las columnas. Se creó un DataFrame vacío.")
-
-    count_sicep = df_licitaciones[df_licitaciones['Operacion'] == 'SICEP'].shape[0]
-    logging.info(f"Licitaciones de SICEP después del filtro 'CodigoEstado': {count_sicep}")
-
-# Verificación de licitaciones de SICEP en df_licitaciones después de concatenar
-count_sicep_in_final_df = df_licitaciones[df_licitaciones['NombreOrganismo'].str.contains("SICEP", na=False)].shape[0]
-logging.info(f"Cantidad de licitaciones de SICEP en el DataFrame final antes de subir a Google Sheets: {count_sicep_in_final_df}")
 
 # Seleccionar solo las columnas importantes, incluida la nueva columna 'FechaCreacion'
 columnas_importantes = [
@@ -265,21 +261,19 @@ if 'FechaCreacion' in df_licitaciones.columns and 'FechaCierre' in df_licitacion
 else:
     logging.error("Las columnas 'FechaCreacion' o 'FechaCierre' no están en el DataFrame.")
 
-# Ajustar el filtro de `FechaCreacion` para incluir todo el mes actual
+# Ajustar el filtro de FechaCreacion para incluir todo el mes actual
 fecha_inicio_mes_actual = datetime(año_actual, mes_actual, 1)
 
-# Aplicar filtro mínimo usando la fecha mínima entre el inicio del mes actual y `fecha_min_publicacion`
+# Aplicar filtro mínimo usando la fecha mínima entre el inicio del mes actual y fecha_min_publicacion
 fecha_filtro_inicio = min(fecha_min_publicacion, fecha_inicio_mes_actual)
 
-# Filtrar licitaciones para incluir solo las con `FechaCreacion` posterior o igual a `fecha_filtro_inicio`
+# Filtrar licitaciones para incluir solo las con FechaCreacion posterior o igual a fecha_filtro_inicio
 df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_filtro_inicio]
 logging.info(f"Fechas en 'FechaCreacion' después del filtro: {df_licitaciones['FechaCreacion'].unique()}")  # Confirmación adicional
 
-# Filtrar licitaciones por `FechaCierre`
+# Filtrar licitaciones por FechaCierre
 df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
 logging.info(f"Licitaciones filtradas: {len(df_licitaciones)} después de aplicar los filtros de publicación y cierre.")
-logging.info(f"Primeras filas de df_licitaciones antes de subir a Google Sheets: \n{df_licitaciones.head()}")
-
 
 # Convertir el DataFrame a una lista de listas para subirlo a Google Sheets
 if not df_licitaciones.empty:
@@ -682,13 +676,13 @@ def procesar_licitaciones_y_generar_ranking():
         worksheet_hoja2.clear()
         worksheet_hoja2.update('A1', [[nombre_a1]])  # Restaurar el valor original de A1
 
+
         actualizar_hoja(worksheet_hoja2, 'A3', data_final)
         logging.info("Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.")
     
     except Exception as e:
         logging.error(f"Error en procesar_licitaciones_y_generar_ranking: {e}")
         raise
-
 
 # Ejecutar la función principal
 procesar_licitaciones_y_generar_ranking()
