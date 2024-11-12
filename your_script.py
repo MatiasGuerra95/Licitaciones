@@ -205,7 +205,10 @@ def integrar_licitaciones_sicep(df_licitaciones):
         if columna not in df_licitaciones_sicep.columns:
             df_licitaciones_sicep[columna] = None  # Rellenar las columnas faltantes con None
         # Log de columnas de SICEP después de agregar columnas faltantes
-    logging.info(f"Columnas de SICEP después de rellenar: {df_licitaciones_sicep.columns.tolist()}")    
+    logging.info(f"Columnas de SICEP después de rellenar: {df_licitaciones_sicep.columns.tolist()}") 
+
+    # Reordenar las columnas según el orden especificado
+    df_licitaciones_sicep = df_licitaciones_sicep[columnas_obligatorias]       
     
     # Subir las licitaciones de SICEP a la Hoja 7
     try:
