@@ -90,7 +90,7 @@ try:
     worksheet_hoja6 = get_worksheet_with_retry(sh, 5)  # Hoja Seleccion
     worksheet_hoja7 = get_worksheet_with_retry(sh, 6)  # Hoja Licitaciones Activas y Duplicadas
     worksheet_hoja10 = get_worksheet_with_retry(sh, 7)  # Hoja Ranking no relativo
-
+    worksheet_hoja11 = get_worksheet_with_retry(sh, 10) #Hoja Licitaciones Sicep
 except Exception as e:
     logging.error(f"Error al obtener una o más hojas: {e}")
     raise
@@ -176,41 +176,61 @@ def procesar_licitaciones(url):
         logging.error(f"Error descargando o procesando el archivo desde {url}: {e}")
         return pd.DataFrame()
     
-# Función para integrar licitaciones de SICEP y guardarlas en la Hoja 7
-def integrar_licitaciones_sicep(df_licitaciones):
-    # Obtener las licitaciones desde SICEP
-    df_licitaciones_sicep = login_and_scrape()
-    
-    # Ajustar columnas para que coincidan con el esquema del df_licitaciones
-    df_licitaciones_sicep = df_licitaciones_sicep.rename(columns={
+# Función con reintentos para actualizar Google Sheets
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
+def actualizar_google_sheets(worksheet, data_to_upload):
+    worksheet.clear()  # Limpiar hoja antes de subir los datos
+    worksheet.update('A1', data_to_upload)  # Subir todos los datos juntos
+
+# Función para subir las licitaciones de SICEP a la nueva hoja
+def integrar_licitaciones_sicep():
+    # Obtener y renombrar columnas de SICEP
+    df_licitaciones_sicep = login_and_scrape().rename(columns={
         "Titulo": "Nombre",
         "Fecha de Publicacion": "FechaCreacion",
         "Fecha de Cierre": "FechaCierre",
         "Descripcion": "Descripcion",
         "Link": "Link"
     })
+
+    # Asegurar columnas obligatorias
+    columnas_obligatorias = [
+        "Link", "CodigoExterno", "Nombre", "Descripcion", "CodigoEstado",
+        "NombreOrganismo", "Tipo", "CantidadReclamos", "FechaCreacion",
+        "FechaCierre", "TiempoDuracionContrato", "Rubro3", "Nombre producto genrico"
+    ]
+    for columna in columnas_obligatorias:
+        if columna not in df_licitaciones_sicep.columns:
+            df_licitaciones_sicep[columna] = None
+
+    # Subir SICEP a la Hoja de SICEP (Hoja 11) en lugar de Hoja 7
+    data_to_upload = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
+    data_to_upload = [[str(x) for x in row] for row in data_to_upload]
     
-    # Añadir una columna de CodigoExterno si es necesaria
-    if "CodigoExterno" not in df_licitaciones_sicep.columns:
-        df_licitaciones_sicep["CodigoExterno"] = range(1, len(df_licitaciones_sicep) + 1)
-    
-    # Subir las licitaciones de SICEP a la Hoja 7
     try:
-        data_sicep = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
-        data_sicep = [[str(x) for x in row] for row in data_sicep]
-        
-        worksheet_hoja7.clear()  # Limpiar Hoja 7 antes de actualizar
-        worksheet_hoja7.update('A1', data_sicep)  # Subir las licitaciones de SICEP a la Hoja 7
-        logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 7.")
+        worksheet_hoja_sicep.clear()  # Limpiar Hoja de SICEP antes de actualizar
+        worksheet_hoja_sicep.update('A1', data_to_upload)
+        logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja de SICEP.")
     except Exception as e:
-        logging.error(f"Error al subir las licitaciones de SICEP a la Hoja 7: {e}")
+        logging.error(f"Error al subir licitaciones de SICEP a la Hoja de SICEP: {e}")
         raise
-        # Log de nombres de columnas
-    logging.info(f"Nombres de las columnas de SICEP: {df_licitaciones_sicep.columns.tolist()}")
-    
-    # Concatenar ambos DataFrames
-    df_licitaciones = pd.concat([df_licitaciones, df_licitaciones_sicep], ignore_index=True)
-    logging.info("Licitaciones de SICEP integradas exitosamente.")
+
+# Función para cargar licitaciones de ambas fuentes para el ranking
+def cargar_datos_para_ranking():
+    # Cargar datos de Mercado Público desde Hoja 7
+    licitaciones_mp = worksheet_hoja7.get_all_values()
+    df_licitaciones_mp = pd.DataFrame(licitaciones_mp[1:], columns=licitaciones_mp[0])
+    logging.info(f"Licitaciones de Mercado Público cargadas. Total: {len(df_licitaciones_mp)}")
+
+    # Cargar datos de SICEP desde la nueva Hoja de SICEP
+    licitaciones_sicep = worksheet_hoja_sicep.get_all_values()
+    df_licitaciones_sicep = pd.DataFrame(licitaciones_sicep[1:], columns=licitaciones_sicep[0])
+    logging.info(f"Licitaciones de SICEP cargadas. Total: {len(df_licitaciones_sicep)}")
+
+    # Concatenar ambos DataFrames para el ranking final
+    df_licitaciones = pd.concat([df_licitaciones_mp, df_licitaciones_sicep], ignore_index=True)
+    logging.info(f"Total de licitaciones después de concatenar SICEP y Mercado Público: {len(df_licitaciones)}")
+
     return df_licitaciones
 
 
@@ -519,6 +539,9 @@ def actualizar_hoja(worksheet, rango, datos):
 # Función para procesar las licitaciones y generar un ranking ajustado para que los puntajes relativos sumen 100
 def procesar_licitaciones_y_generar_ranking():
     try:
+        # Cargar los datos consolidados de ambas hojas
+        df_licitaciones = cargar_datos_para_ranking()
+
         # Obtener las palabras clave, rubros-productos y ponderaciones
         palabras_clave = obtener_palabras_clave()
         rubros_y_productos = obtener_rubros_y_productos()
@@ -685,4 +708,5 @@ def procesar_licitaciones_y_generar_ranking():
         raise
 
 # Ejecutar la función principal
+integrar_licitaciones_sicep()
 procesar_licitaciones_y_generar_ranking()
