@@ -209,17 +209,16 @@ def integrar_licitaciones_sicep(df_licitaciones):
     # Reordenar las columnas en df_licitaciones_sicep
     df_licitaciones_sicep = df_licitaciones_sicep[columnas_obligatorias]
 
-    # Subir las licitaciones de SICEP a la Hoja 7
+# Subir el DataFrame completo a la hoja 7 en un solo paso
     try:
-        # Convertir el DataFrame en una lista para cargarla a Google Sheets
-        data_sicep = [df_licitaciones_sicep.columns.values.tolist()] + df_licitaciones_sicep.values.tolist()
-        data_sicep = [[str(x) if x is not None else '' for x in row] for row in data_sicep]
-
-        worksheet_hoja7.clear()  # Limpiar la hoja antes de cargar nuevos datos
-        worksheet_hoja7.update('A1', data_sicep)  # Subir los datos de SICEP
-        logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 7.")
+        data_to_upload = [df_licitaciones.columns.values.tolist()] + df_licitaciones.values.tolist()
+        data_to_upload = [[str(x) for x in row] for row in data_to_upload]
+    
+        worksheet_hoja7.clear()  # Limpiar la Hoja 7 antes de actualizar
+        worksheet_hoja7.update('A1', data_to_upload)  # Subir todas las licitaciones juntas
+        logging.info("Todas las licitaciones subidas exitosamente a la Hoja 7.")
     except Exception as e:
-        logging.error(f"Error al subir las licitaciones de SICEP a la Hoja 7: {e}")
+        logging.error(f"Error al subir todas las licitaciones a la Hoja 7: {e}")
         raise
 
     # Concatenar licitaciones de SICEP con el DataFrame principal
@@ -227,9 +226,6 @@ def integrar_licitaciones_sicep(df_licitaciones):
     logging.info(f"Cantidad de filas en df_licitaciones después de concatenar: {len(df_licitaciones)}")
 
     return df_licitaciones
-
-
-
 
 # Descargar y procesar los archivos de licitaciones del mes actual y el mes anterior
 df_mes_actual = procesar_licitaciones(url_mes_actual)
