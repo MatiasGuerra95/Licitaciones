@@ -227,8 +227,8 @@ def integrar_licitaciones_sicep(df_licitaciones):
     return df_licitaciones
 
     # Verificación después de concatenar
-logging.info(f"Columnas de df_licitaciones después de concatenar: {df_licitaciones.columns.tolist()}")
-logging.info(f"Total de licitaciones después de integrar SICEP: {len(df_licitaciones)}")
+    logging.info(f"Columnas de df_licitaciones después de concatenar: {df_licitaciones.columns.tolist()}")
+    logging.info(f"Total de licitaciones después de integrar SICEP: {len(df_licitaciones)}")
 
 
 # Descargar y procesar los archivos de licitaciones del mes actual y el mes anterior
