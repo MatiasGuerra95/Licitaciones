@@ -267,6 +267,10 @@ else:
     count_sicep = df_licitaciones[df_licitaciones['Operacion'] == 'SICEP'].shape[0]
     logging.info(f"Licitaciones de SICEP después del filtro 'CodigoEstado': {count_sicep}")
 
+# Verificación de licitaciones de SICEP en df_licitaciones después de concatenar
+count_sicep_in_final_df = df_licitaciones[df_licitaciones['NombreOrganismo'].str.contains("SICEP", na=False)].shape[0]
+logging.info(f"Cantidad de licitaciones de SICEP en el DataFrame final antes de subir a Google Sheets: {count_sicep_in_final_df}")
+
 # Seleccionar solo las columnas importantes, incluida la nueva columna 'FechaCreacion'
 columnas_importantes = [
     'CodigoExterno', 'Nombre', 'CodigoEstado', 'FechaCreacion', 'FechaCierre',
