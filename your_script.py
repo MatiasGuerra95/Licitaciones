@@ -89,7 +89,8 @@ try:
     worksheet_hoja4 = get_worksheet_with_retry(sh, 3) #Hoja Clientes
     worksheet_hoja6 = get_worksheet_with_retry(sh, 5)  # Hoja Seleccion
     worksheet_hoja7 = get_worksheet_with_retry(sh, 6)  # Hoja Licitaciones Activas y Duplicadas
-    worksheet_hoja10 = get_worksheet_with_retry(sh, 7)  # Hoja Ranking no relativo
+    worksheet_hoja8 = get_worksheet_with_retry(sh, 7)  # Hoja Ranking no relativo
+    worksheet_hoja10 = get_worksheet_with_retry(sh, 9) #Hoja Lista Negra Palabras
     worksheet_hoja11 = get_worksheet_with_retry(sh, 10) #Hoja Licitaciones Sicep
 except Exception as e:
     logging.error(f"Error al obtener una o más hojas: {e}")
@@ -437,31 +438,46 @@ def obtener_puntaje_clientes():
         logging.error(f"Error al obtener puntaje de clientes: {e}")
         raise
 
-lista_negra = {
-    'humano': ['consumo', 'alimentación']
-    # Agrega más combinaciones según sea necesario
-}
+def obtener_lista_negra():
+    try:
+        # Cargar la lista negra desde la Hoja 10
+        data_lista_negra = worksheet_hoja10.get_all_values()
+        
+        # Crear una lista para almacenar las frases de la lista negra
+        lista_negra = []
+        
+        # Iterar a través de las filas a partir de la segunda fila (índice 1) para saltar el encabezado
+        for row in data_lista_negra[1:]:
+            frase = row[1].strip().lower()    # Frase en la columna B
+            
+            # Añadir la frase a la lista si no está vacía
+            if frase:
+                lista_negra.append(frase)
+                    
+        logging.info(f"Lista negra obtenida: {lista_negra}")
+        return lista_negra
+    except Exception as e:
+        logging.error(f"Error al obtener la lista negra: {e}")
+        raise
 
 def calcular_puntaje_palabra(nombre, descripcion, palabras_clave, lista_negra):
     puntaje_palabra = 0
     texto = f"{nombre.lower()} {descripcion.lower()}"
-    palabras_texto = set(re.findall(r'\b\w+\b', texto))
     
-    # Aplicar lista negra
+    # Aplicar lista negra de frases completas
+    for frase in lista_negra:
+        if frase in texto:
+            puntaje_palabra -= 10  # Aplica penalización
+            logging.info(f"Penalización aplicada: frase '{frase}' encontrada en '{texto}'")
+            return puntaje_palabra  # Salir de la función si se encuentra una frase de la lista negra
+    
+    # Si no hay penalización, aplicar puntos para palabras clave individuales
+    palabras_texto = set(re.findall(r'\b\w+\b', texto))
     for palabra_clave in palabras_clave:
         if palabra_clave in palabras_texto:
-            penalizado = False  # Variable para saber si se penalizó
-            # Verificar si hay palabras de interferencia antes de sumar puntos
-            if palabra_clave in lista_negra:
-                for palabra_interferencia in lista_negra[palabra_clave]:
-                    if palabra_interferencia in texto:
-                        puntaje_palabra -= 10  # Aplica penalización
-                        logging.info(f"Penalización aplicada: '{palabra_interferencia} {palabra_clave}' en '{texto}'")
-                        penalizado = True
-                        break
-            if not penalizado:
-                puntaje_palabra += 10
-                logging.info(f"Puntos sumados por palabra clave: '{palabra_clave}' en '{texto}'")
+            puntaje_palabra += 10
+            logging.info(f"Puntos sumados por palabra clave: '{palabra_clave}' en '{texto}'")
+    
     return puntaje_palabra
 
 
@@ -531,6 +547,8 @@ def actualizar_hoja(worksheet, rango, datos):
     except Exception as e:
         logging.error(f"Error al actualizar la Hoja en el rango {rango}: {e}")
         raise
+
+lista_negra = obtener_lista_negra()
 
 # Función para procesar las licitaciones y generar un ranking ajustado para que los puntajes relativos sumen 100
 def procesar_licitaciones_y_generar_ranking():
