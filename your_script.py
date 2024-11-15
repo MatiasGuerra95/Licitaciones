@@ -461,17 +461,17 @@ def obtener_lista_negra():
         raise
 
 def calcular_puntaje_palabra(nombre, descripcion, palabras_clave, lista_negra):
-    puntaje_palabra = 0
     texto = f"{nombre.lower()} {descripcion.lower()}"
     
-    # Aplicar lista negra de frases completas
+    # Verificar si alguna frase de la lista negra está en el texto
     for frase in lista_negra:
         if frase in texto:
-            puntaje_palabra -= 10  # Aplica penalización
+            # Aplicar penalización inmediata si se encuentra una frase prohibida
             logging.info(f"Penalización aplicada: frase '{frase}' encontrada en '{texto}'")
-            return puntaje_palabra  # Salir de la función si se encuentra una frase de la lista negra
+            return -10  # Penalización fija
     
-    # Si no hay penalización, aplicar puntos para palabras clave individuales
+    # Si no hay ninguna frase de la lista negra, proceder a sumar puntos por palabras clave
+    puntaje_palabra = 0
     palabras_texto = set(re.findall(r'\b\w+\b', texto))
     for palabra_clave in palabras_clave:
         if palabra_clave in palabras_texto:
