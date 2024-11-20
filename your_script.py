@@ -480,8 +480,6 @@ def calcular_puntaje_palabra(nombre, descripcion, palabras_clave, lista_negra):
     
     return puntaje_palabra
 
-
-
 # Función para calcular el puntaje por rubros y productos
 def calcular_puntaje_rubro(row, rubros_y_productos):
     rubro_column = row['Rubro3'].lower() if pd.notnull(row['Rubro3']) else ''
