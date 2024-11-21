@@ -15,16 +15,16 @@ from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_excep
 from zipfile import ZipFile
 from io import BytesIO
 
-from extractores.sicep import login_and_scrape  # Ensure this module is correctly implemented and accessible
+from extractores.sicep import login_and_scrape  # Asegúrate de que este módulo esté correctamente implementado
 
-# -------------------------- Configuration Constants --------------------------
+# -------------------------- Configuración de Constantes --------------------------
 
-# Logging Configuration
+# Configuración de Logging
 LOG_FILE = 'your_script.log'
 LOG_MAX_BYTES = 10**6  # 1MB
 LOG_BACKUP_COUNT = 5
 
-# Google Sheets Configuration
+# Configuración de Google Sheets
 SHEET_ID = '1EGoDJtO-b5dAGzC8LRYyZVdhHdcE2_ukgZAl-Ni9IxM'
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -32,10 +32,10 @@ SCOPES = [
 ]
 CREDENTIALS_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS_JSON"
 
-# URLs Configuration
+# Configuración de URLs
 BASE_URL = "https://transparenciachc.blob.core.windows.net/lic-da/"
 
-# Health-Related Organizations to Exclude
+# Organizaciones relacionadas con la salud para excluir
 SALUD_EXCLUIR = [
     'CENTRO DE SALUD', 'PREHOSPITALARIA', 'REFERENCIA DE SALUD',
     'REFERENCIAL DE SALUD', 'ONCOLOGICO', 'CESFAM', 'COMPLEJO ASISTENCIAL',
@@ -47,17 +47,20 @@ SALUD_EXCLUIR = [
     'SERVICIO NACIONAL DE SALUD', 'SERVICIO SALUD', 'INSTITUTO DE DESARROLLO AGROPECUARIO'
 ]
 
-# Lista Negra (Blacklist) Configuration
-# Assuming it's in column B starting from row 2 in Hoja 10
+# Rango de Lista Negra (Blacklist)
 LISTA_NEGRA_RANGE = 'B2:B'
 
-# Ranges Configuration
+# Rango de Fechas
 FECHAS_RANGE = 'C6:C7'
+
+# Rangos de Palabras Clave
 PALABRAS_CLAVE_RANGES = {
     'C': 'C27:C32',
     'F': 'F27:F35',
     'I': 'I27:I34'
 }
+
+# Rangos de Rubros y Productos
 RUBROS_RANGES = {
     'rubro1': 'C13',
     'rubro2': 'F13',
@@ -69,18 +72,18 @@ PRODUCTOS_RANGES = {
     'rubro3': [f'I{row}' for row in range(14, 24)]
 }
 
-# Column Configuration
+# Columnas Importantes
 COLUMNAS_IMPORTANTES = [
     'CodigoExterno', 'Nombre', 'CodigoEstado', 'FechaCreacion', 'FechaCierre',
     'Descripcion', 'NombreOrganismo', 'Rubro3', 'Nombre producto genrico',
     'Tipo', 'CantidadReclamos', 'TiempoDuracionContrato', 'Link'
 ]
 
-# -------------------------- Logging Setup --------------------------
+# -------------------------- Configuración de Logging --------------------------
 
 def setup_logging():
     """
-    Configures logging with rotation to prevent log files from becoming too large.
+    Configura el logging con rotación para evitar que el archivo de log crezca indefinidamente.
     """
     handler = RotatingFileHandler(LOG_FILE, maxBytes=LOG_MAX_BYTES, backupCount=LOG_BACKUP_COUNT)
     logging.basicConfig(
@@ -88,16 +91,16 @@ def setup_logging():
         handlers=[handler],
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
-    logging.info("Logging is configured and initialized.")
+    logging.info("Logging está configurado e inicializado.")
 
-# -------------------------- Google Sheets Authentication --------------------------
+# -------------------------- Autenticación con Google Sheets --------------------------
 
 def authenticate_google_sheets():
     """
-    Authenticates with Google Sheets using service account credentials.
+    Autentica con Google Sheets usando credenciales de cuenta de servicio.
 
     Returns:
-        gspread.Client: An authorized gspread client.
+        gspread.Client: Un cliente autorizado de gspread.
     """
     creds_json = os.environ.get(CREDENTIALS_ENV_VAR)
     if not creds_json:
@@ -117,7 +120,7 @@ def authenticate_google_sheets():
         logging.error(f"Error al autenticar con Google Sheets: {e}", exc_info=True)
         raise
 
-# -------------------------- Worksheet Retrieval with Retry --------------------------
+# -------------------------- Recuperación de Worksheets con Retry --------------------------
 
 @retry(
     wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -126,14 +129,14 @@ def authenticate_google_sheets():
 )
 def get_worksheet_with_retry(spreadsheet, index):
     """
-    Retrieves a worksheet by index with retry mechanism for handling API errors.
+    Recupera una hoja por índice con un mecanismo de retry para manejar errores de la API.
 
     Args:
-        spreadsheet (gspread.Spreadsheet): The spreadsheet object.
-        index (int): The index of the worksheet to retrieve.
+        spreadsheet (gspread.Spreadsheet): El objeto de la hoja de cálculo.
+        index (int): El índice de la hoja a recuperar.
 
     Returns:
-        gspread.Worksheet: The retrieved worksheet.
+        gspread.Worksheet: La hoja recuperada.
     """
     try:
         worksheet = spreadsheet.get_worksheet(index)
@@ -149,17 +152,17 @@ def get_worksheet_with_retry(spreadsheet, index):
         logging.error(f"Error inesperado al obtener Hoja {index + 1}: {e}", exc_info=True)
         raise
 
-# -------------------------- Utility Functions --------------------------
+# -------------------------- Funciones Utilitarias --------------------------
 
 def eliminar_tildes(texto):
     """
-    Removes diacritical marks from the input text.
+    Elimina las tildes de una cadena de texto.
 
     Args:
-        texto (str): The text to process.
+        texto (str): El texto a procesar.
 
     Returns:
-        str: The text without diacritical marks.
+        str: El texto sin tildes.
     """
     if texto:
         texto = unicodedata.normalize('NFD', texto)
@@ -168,14 +171,14 @@ def eliminar_tildes(texto):
 
 def obtener_rango_hoja(worksheet, rango):
     """
-    Retrieves values from a specified range in a worksheet.
+    Recupera valores de un rango especificado en una hoja.
 
     Args:
-        worksheet (gspread.Worksheet): The worksheet to retrieve data from.
-        rango (str): The range in A1 notation.
+        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar datos.
+        rango (str): El rango en notación A1.
 
     Returns:
-        list: A list of lists containing the values.
+        list: Una lista de listas con los valores.
     """
     try:
         valores = worksheet.get(rango)
@@ -187,38 +190,39 @@ def obtener_rango_hoja(worksheet, rango):
 
 def obtener_palabras_clave(worksheet):
     """
-    Retrieves and processes keyword phrases from specified ranges in the worksheet.
+    Recupera y procesa frases clave desde rangos especificados en la hoja.
 
     Args:
-        worksheet (gspread.Worksheet): The worksheet to retrieve keywords from.
+        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar las palabras clave.
 
     Returns:
-        list: A list of processed keyword phrases.
+        set: Un conjunto de frases clave procesadas.
     """
     try:
         palabras_clave = []
         for key, rango in PALABRAS_CLAVE_RANGES.items():
             valores = obtener_rango_hoja(worksheet, rango)
             palabras_clave.extend([p.lower() for fila in valores for p in fila if p])
-        logging.info(f"Palabras clave obtenidas: {palabras_clave}")
-        return palabras_clave
+        palabras_clave_set = set(palabras_clave)
+        logging.info(f"Palabras clave obtenidas: {palabras_clave_set}")
+        return palabras_clave_set
     except Exception as e:
         logging.error(f"Error al obtener palabras clave: {e}", exc_info=True)
         raise
 
 def obtener_lista_negra(worksheet):
     """
-    Retrieves the blacklist phrases from the specified range in the worksheet.
+    Recupera las frases de la lista negra desde el rango especificado en la hoja.
 
     Args:
-        worksheet (gspread.Worksheet): The worksheet to retrieve the blacklist from.
+        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar la lista negra.
 
     Returns:
-        list: A list of blacklist phrases.
+        set: Un conjunto de frases de la lista negra.
     """
     try:
-        data_lista_negra = worksheet.get(LISTA_NEGRA_RANGE)
-        lista_negra = [row[0].strip().lower() for row in data_lista_negra if row and row[0].strip()]
+        data_lista_negra = obtener_rango_hoja(worksheet, LISTA_NEGRA_RANGE)
+        lista_negra = set([row[0].strip().lower() for row in data_lista_negra if row and row[0].strip()])
         logging.info(f"Lista negra obtenida: {lista_negra}")
         return lista_negra
     except Exception as e:
@@ -227,26 +231,35 @@ def obtener_lista_negra(worksheet):
 
 def obtener_rubros_y_productos(worksheet):
     """
-    Retrieves rubros and their corresponding productos from the worksheet.
+    Recupera rubros y sus correspondientes productos desde la hoja.
 
     Args:
-        worksheet (gspread.Worksheet): The worksheet to retrieve rubros and productos from.
+        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
 
     Returns:
-        dict: A dictionary mapping rubros to their list of productos.
+        dict: Un diccionario mapeando rubros a sus listas de productos.
     """
     try:
-        rubros = {key: worksheet.acell(cell).value for key, cell in RUBROS_RANGES.items()}
-        productos = {
-            key: [worksheet.acell(cell).value for cell in cells if worksheet.acell(cell).value]
-            for key, cells in PRODUCTOS_RANGES.items()
-        }
-
+        # Recuperar todos los rubros de una vez
+        rubros_cells = obtener_rango_hoja(worksheet, ','.join(RUBROS_RANGES.values()))
+        rubros = {key: rubro[0] for key, rubro in zip(RUBROS_RANGES.keys(), rubros_cells)}
+        
+        # Recuperar productos por rubro en bloques
+        productos = {}
+        for key, cells in PRODUCTOS_RANGES.items():
+            # Construir un rango que abarque todas las celdas de productos para este rubro
+            rango = ','.join(cells)
+            productos_cells = obtener_rango_hoja(worksheet, rango)
+            # Filtrar productos no vacíos y convertir a minúsculas
+            productos[key] = [producto[0].lower() for producto in productos_cells if producto and producto[0].strip()]
+        
+        # Mapear rubros a productos
         rubros_y_productos = {}
         for key, rubro in rubros.items():
-            if rubro:
-                productos_rubro = [producto.lower() for producto in productos[key]]
-                rubros_y_productos[rubro.lower()] = productos_rubro
+            if rubro and rubro.strip():
+                rubro_limpio = eliminar_tildes(rubro.lower())
+                rubros_y_productos[rubro_limpio] = productos.get(key, [])
+        
         logging.info(f"Rubros y productos obtenidos: {rubros_y_productos}")
         return rubros_y_productos
     except Exception as e:
@@ -255,59 +268,87 @@ def obtener_rubros_y_productos(worksheet):
 
 def obtener_puntaje_clientes(worksheet):
     """
-    Retrieves clients and their statuses from the worksheet and assigns scores.
+    Recupera clientes y sus estados desde la hoja y asigna puntajes.
 
     Args:
-        worksheet (gspread.Worksheet): The worksheet to retrieve client data from.
+        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar datos de clientes.
 
     Returns:
-        dict: A dictionary mapping clients to their scores based on status.
+        dict: Un diccionario mapeando clientes a sus puntajes basados en el estado.
     """
     try:
-        clientes = worksheet.col_values(4)[3:]  # D4 onwards
-        estados = worksheet.col_values(5)[3:]  # E4 onwards
+        # Recuperar todas las filas de clientes y estados de una vez
+        clientes = worksheet.col_values(4)[3:]  # D4 en adelante
+        estados = worksheet.col_values(5)[3:]   # E4 en adelante
 
         puntaje_clientes = {}
         for cliente, estado in zip(clientes, estados):
             estado_lower = estado.strip().lower()
             if estado_lower == 'vigente':
-                puntaje_clientes[cliente.lower()] = 10
+                puntaje_clientes[eliminar_tildes(cliente.lower())] = 10
             elif estado_lower == 'no vigente':
-                puntaje_clientes[cliente.lower()] = 5
+                puntaje_clientes[eliminar_tildes(cliente.lower())] = 5
             else:
-                puntaje_clientes[cliente.lower()] = 0
+                puntaje_clientes[eliminar_tildes(cliente.lower())] = 0
         logging.info(f"Puntaje de clientes obtenidos: {puntaje_clientes}")
         return puntaje_clientes
     except Exception as e:
         logging.error(f"Error al obtener puntaje de clientes: {e}", exc_info=True)
         raise
 
-def calcular_puntaje_palabra(nombre, descripcion, palabras_clave_set, lista_negra):
+def obtener_ponderaciones(worksheet_inicio):
     """
-    Calculates the word-based score for a given licitacion.
+    Recupera ponderaciones desde la Hoja 1.
 
     Args:
-        nombre (str): The name of the licitacion.
-        descripcion (str): The description of the licitacion.
-        palabras_clave_set (set): A set of keyword phrases.
-        lista_negra (list): A list of blacklist phrases.
+        worksheet_inicio (gspread.Worksheet): La hoja de cálculo que contiene las ponderaciones.
 
     Returns:
-        int: The calculated word-based score.
+        dict: Un diccionario con las ponderaciones.
+    """
+    try:
+        ponderaciones_valores = obtener_rango_hoja(worksheet_inicio, 'K11:K43')
+        ponderaciones = {
+            'Puntaje Rubro': float(ponderaciones_valores[0][0].strip('%')) / 100,
+            'Puntaje Palabra': float(ponderaciones_valores[14][0].strip('%')) / 100,
+            'Puntaje Clientes': float(ponderaciones_valores[28][0].strip('%')) / 100,
+            'Puntaje Monto': float(ponderaciones_valores[32][0].strip('%')) / 100
+        }
+        logging.info(f"Ponderaciones obtenidas: {ponderaciones}")
+        return ponderaciones
+    except Exception as e:
+        logging.error(f"Error al obtener ponderaciones: {e}", exc_info=True)
+        raise
+
+# -------------------------- Funciones de Calculo de Puntajes --------------------------
+
+def calcular_puntaje_palabra(nombre, descripcion, palabras_clave_set, lista_negra):
+    """
+    Calcula el puntaje basado en palabras clave y aplica penalizaciones según la lista negra.
+
+    Args:
+        nombre (str): Nombre de la licitación.
+        descripcion (str): Descripción de la licitación.
+        palabras_clave_set (set): Conjunto de palabras clave.
+        lista_negra (set): Conjunto de frases de la lista negra.
+
+    Returns:
+        int: El puntaje calculado.
     """
     try:
         texto = f"{nombre.lower()} {descripcion.lower()}"
         
-        # Penalización específica
+        # Aplicar penalización específica
         if "consumo humano" in texto:
             logging.info(f"Penalización aplicada: frase 'consumo humano' encontrada en '{texto}'")
             return -10
         
         # Sumar puntos por palabras clave
         palabras_texto = set(re.findall(r'\b\w+\b', texto))
-        puntaje_palabra = len(palabras_clave_set.intersection(palabras_texto)) * 10
+        palabras_encontradas = palabras_clave_set.intersection(palabras_texto)
+        puntaje_palabra = len(palabras_encontradas) * 10
         
-        for palabra in palabras_clave_set.intersection(palabras_texto):
+        for palabra in palabras_encontradas:
             logging.info(f"Puntos sumados por palabra clave: '{palabra}' en '{texto}'")
         
         return puntaje_palabra
@@ -317,18 +358,18 @@ def calcular_puntaje_palabra(nombre, descripcion, palabras_clave_set, lista_negr
 
 def calcular_puntaje_rubro(row, rubros_y_productos):
     """
-    Calculates the rubro-based score for a given licitacion.
+    Calcula el puntaje basado en rubros y productos.
 
     Args:
-        row (pd.Series): A row from the DataFrame representing a licitacion.
-        rubros_y_productos (dict): A dictionary mapping rubros to productos.
+        row (pd.Series): Una fila del DataFrame representando una licitación.
+        rubros_y_productos (dict): Diccionario mapeando rubros a productos.
 
     Returns:
-        int: The calculated rubro-based score.
+        int: El puntaje calculado.
     """
     try:
-        rubro_column = row['Rubro3'].lower() if pd.notnull(row['Rubro3']) else ''
-        productos_column = row['Nombre producto genrico'].lower() if pd.notnull(row['Nombre producto genrico']) else ''
+        rubro_column = eliminar_tildes(row['Rubro3'].lower()) if pd.notnull(row['Rubro3']) else ''
+        productos_column = eliminar_tildes(row['Nombre producto genrico'].lower()) if pd.notnull(row['Nombre producto genrico']) else ''
         puntaje_rubro = 0
         rubros_presentes = set()
         productos_presentes = set()
@@ -350,14 +391,14 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
     """
-    Calculates the monto-based score for a given licitacion.
+    Calcula el puntaje basado en el monto de la licitación.
 
     Args:
-        tipo_licitacion (str): The type of the licitacion.
-        tiempo_duracion_contrato (str): The duration of the contract.
+        tipo_licitacion (str): Tipo de licitación.
+        tiempo_duracion_contrato (str): Duración del contrato.
 
     Returns:
-        float: The calculated monto-based score.
+        float: El puntaje calculado.
     """
     montos_por_tipo = {
         'L1': 0, 'LE': 100, 'LP': 1000, 'LQ': 2000, 'LR': 5000, 'LS': 0,
@@ -381,22 +422,22 @@ def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
 
 def calcular_puntaje_clientes(nombre_organismo, puntaje_clientes):
     """
-    Retrieves the client score based on the organismo's name.
+    Recupera el puntaje del cliente basado en el nombre del organismo.
 
     Args:
-        nombre_organismo (str): The name of the organismo.
-        puntaje_clientes (dict): A dictionary mapping clientes to their scores.
+        nombre_organismo (str): Nombre del organismo.
+        puntaje_clientes (dict): Diccionario mapeando clientes a puntajes.
 
     Returns:
-        int: The score assigned to the client.
+        int: El puntaje asignado al cliente.
     """
     try:
-        return puntaje_clientes.get(nombre_organismo.lower(), 0)
+        return puntaje_clientes.get(eliminar_tildes(nombre_organismo.lower()), 0)
     except Exception as e:
         logging.error(f"Error al calcular puntaje por clientes: {e}", exc_info=True)
         return 0
 
-# -------------------------- Google Sheets Update with Retry --------------------------
+# -------------------------- Actualización de Google Sheets con Retry --------------------------
 
 @retry(
     wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -405,16 +446,16 @@ def calcular_puntaje_clientes(nombre_organismo, puntaje_clientes):
 )
 def actualizar_hoja(worksheet, rango, datos):
     """
-    Updates a specified range in a worksheet with the provided data.
+    Actualiza un rango específico en una hoja con los datos proporcionados.
 
     Args:
-        worksheet (gspread.Worksheet): The worksheet to update.
-        rango (str): The range in A1 notation to update.
-        datos (list): The data to upload.
+        worksheet (gspread.Worksheet): La hoja de cálculo a actualizar.
+        rango (str): El rango en notación A1.
+        datos (list): Los datos a subir.
 
     Raises:
-        APIError: If the update fails due to an API error.
-        Exception: For any other exceptions.
+        APIError: Si la actualización falla debido a un error de la API.
+        Exception: Para cualquier otro error.
     """
     try:
         worksheet.update(rango, datos)
@@ -426,17 +467,17 @@ def actualizar_hoja(worksheet, rango, datos):
         logging.error(f"Error al actualizar la Hoja en el rango {rango}: {e}", exc_info=True)
         raise
 
-# -------------------------- Data Retrieval Functions --------------------------
+# -------------------------- Funciones de Recuperación y Procesamiento de Datos --------------------------
 
 def procesar_licitaciones(url):
     """
-    Downloads and processes a ZIP file containing CSVs of licitaciones.
+    Descarga y procesa un archivo ZIP que contiene CSVs de licitaciones.
 
     Args:
-        url (str): The URL to download the ZIP file from.
+        url (str): La URL para descargar el archivo ZIP.
 
     Returns:
-        pd.DataFrame: A concatenated DataFrame of all processed CSVs.
+        pd.DataFrame: Un DataFrame concatenado de todos los CSVs procesados.
     """
     try:
         logging.info(f"Descargando licitaciones desde: {url}")
@@ -478,13 +519,13 @@ def procesar_licitaciones(url):
 
 def integrar_licitaciones_sicep(worksheet_sicep):
     """
-    Integrates licitaciones from SICEP into the designated worksheet.
+    Integra licitaciones de SICEP en la hoja designada.
 
     Args:
-        worksheet_sicep (gspread.Worksheet): The worksheet to upload SICEP licitaciones.
+        worksheet_sicep (gspread.Worksheet): La hoja donde se subirán las licitaciones de SICEP.
 
     Returns:
-        pd.DataFrame: The DataFrame of SICEP licitaciones.
+        pd.DataFrame: El DataFrame de licitaciones de SICEP.
     """
     try:
         df_sicep = login_and_scrape().rename(columns={
@@ -495,7 +536,7 @@ def integrar_licitaciones_sicep(worksheet_sicep):
             "Link": "Link"
         })
 
-        # Ensure mandatory columns
+        # Asegurar columnas obligatorias
         columnas_obligatorias = [
             "Link", "CodigoExterno", "Nombre", "Descripcion", "CodigoEstado",
             "NombreOrganismo", "Tipo", "CantidadReclamos", "FechaCreacion",
@@ -505,11 +546,11 @@ def integrar_licitaciones_sicep(worksheet_sicep):
             if columna not in df_sicep.columns:
                 df_sicep[columna] = None
 
-        # Convert to list of lists for Google Sheets
+        # Convertir a lista de listas para Google Sheets
         data_to_upload = [df_sicep.columns.values.tolist()] + df_sicep.values.tolist()
         data_to_upload = [[str(x) for x in row] for row in data_to_upload]
 
-        # Clear and update the worksheet
+        # Limpiar y actualizar la hoja
         worksheet_sicep.clear()
         actualizar_hoja(worksheet_sicep, 'A1', data_to_upload)
         logging.info("Licitaciones de SICEP subidas exitosamente a la Hoja 11.")
@@ -521,7 +562,48 @@ def integrar_licitaciones_sicep(worksheet_sicep):
         logging.error(f"Error al integrar licitaciones de SICEP: {e}", exc_info=True)
         raise
 
-# -------------------------- Main Processing Function --------------------------
+def eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas):
+    """
+    Elimina licitaciones de la Hoja 7 basándose en los 'CodigoExterno' seleccionados en la Hoja 6.
+
+    Args:
+        worksheet_seleccion (gspread.Worksheet): Hoja 6 que contiene los 'CodigoExterno' seleccionados.
+        worksheet_licitaciones_activas (gspread.Worksheet): Hoja 7 que contiene las licitaciones activas.
+    """
+    try:
+        codigos_seleccionados = worksheet_seleccion.col_values(1)[3:]  # Asumiendo que los 'CodigoExterno' están en la primera columna a partir de la fila 4
+        codigos_seleccionados = set([eliminar_tildes(codigo.lower()) for codigo in codigos_seleccionados if codigo])
+        logging.info(f"Total de 'CodigoExterno' seleccionados para eliminar: {len(codigos_seleccionados)}")
+
+        licitaciones = worksheet_licitaciones_activas.get_all_values()
+        if not licitaciones or len(licitaciones) < 2:
+            logging.warning("No hay licitaciones en la Hoja 7 para procesar.")
+            return
+
+        df_licitaciones = pd.DataFrame(licitaciones[1:], columns=licitaciones[0])
+        logging.info(f"Total de licitaciones en la Hoja 7 antes de filtrar: {len(df_licitaciones)}")
+
+        df_licitaciones_filtrado = df_licitaciones[~df_licitaciones['CodigoExterno'].str.lower().isin(codigos_seleccionados)]
+        logging.info(f"Total de licitaciones en la Hoja 7 después de filtrar: {len(df_licitaciones_filtrado)}")
+
+        # Preparar datos para subir
+        data_to_upload = [df_licitaciones_filtrado.columns.values.tolist()] + df_licitaciones_filtrado.values.tolist()
+        data_to_upload = [[str(x) for x in row] for row in data_to_upload]
+
+        # Actualizar la Hoja 7
+        worksheet_licitaciones_activas.clear()
+        logging.info("Contenido de la Hoja 7 borrado antes de actualizar con datos filtrados.")
+
+        actualizar_hoja(worksheet_licitaciones_activas, 'A1', data_to_upload)
+        logging.info(f"Se eliminaron {len(codigos_seleccionados)} licitaciones seleccionadas de la Hoja 7.")
+    except APIError as e:
+        logging.error(f"APIError al eliminar licitaciones seleccionadas: {e}", exc_info=True)
+        raise
+    except Exception as e:
+        logging.error(f"Error al eliminar licitaciones seleccionadas: {e}", exc_info=True)
+        raise
+
+# -------------------------- Función Principal de Procesamiento --------------------------
 
 def procesar_licitaciones_y_generar_ranking(
     worksheet_inicio,
@@ -535,28 +617,28 @@ def procesar_licitaciones_y_generar_ranking(
     worksheet_sicep
 ):
     """
-    Processes licitaciones data and generates a ranking based on various criteria.
+    Procesa los datos de licitaciones y genera un ranking basado en varios criterios.
 
     Args:
-        worksheet_inicio (gspread.Worksheet): Worksheet containing initial settings.
-        worksheet_ranking (gspread.Worksheet): Worksheet to upload the final ranking.
-        worksheet_rubros (gspread.Worksheet): Worksheet containing rubros data.
-        worksheet_clientes (gspread.Worksheet): Worksheet containing clients data.
-        worksheet_seleccion (gspread.Worksheet): Worksheet containing selected licitaciones.
-        worksheet_licitaciones_activas (gspread.Worksheet): Worksheet containing active licitaciones.
-        worksheet_ranking_no_relativo (gspread.Worksheet): Worksheet to upload non-relative scores.
-        worksheet_lista_negra (gspread.Worksheet): Worksheet containing blacklist phrases.
-        worksheet_sicep (gspread.Worksheet): Worksheet containing SICEP licitaciones.
+        worksheet_inicio (gspread.Worksheet): Hoja 1 con configuraciones iniciales.
+        worksheet_ranking (gspread.Worksheet): Hoja 2 para subir el ranking final.
+        worksheet_rubros (gspread.Worksheet): Hoja 3 con datos de rubros.
+        worksheet_clientes (gspread.Worksheet): Hoja 4 con datos de clientes.
+        worksheet_seleccion (gspread.Worksheet): Hoja 6 con licitaciones seleccionadas.
+        worksheet_licitaciones_activas (gspread.Worksheet): Hoja 7 con licitaciones activas y duplicadas.
+        worksheet_ranking_no_relativo (gspread.Worksheet): Hoja 8 para subir puntajes no relativos.
+        worksheet_lista_negra (gspread.Worksheet): Hoja 10 con palabras de la lista negra.
+        worksheet_sicep (gspread.Worksheet): Hoja 11 con licitaciones de SICEP.
     """
     try:
-        # Extract minimum dates from Hoja 1
+        # Extraer fechas mínimas de la Hoja 1
         valores_fechas = obtener_rango_hoja(worksheet_inicio, FECHAS_RANGE)
         fecha_min_publicacion = pd.to_datetime(valores_fechas[0][0], errors='coerce')
         fecha_min_cierre = pd.to_datetime(valores_fechas[1][0], errors='coerce')
         logging.info(f"Fecha mínima de publicación: {fecha_min_publicacion}")
         logging.info(f"Fecha mínima de cierre: {fecha_min_cierre}")
 
-        # Determine current and previous month/year
+        # Determinar mes y año actual y anterior
         now = datetime.now()
         mes_actual = now.month
         año_actual = now.year
@@ -568,29 +650,29 @@ def procesar_licitaciones_y_generar_ranking(
             mes_anterior = mes_actual - 1
             año_anterior = año_actual
 
-        # Construct URLs
+        # Construir URLs
         url_mes_actual = f"{BASE_URL}{año_actual}-{mes_actual:02d}.zip"
         url_mes_anterior = f"{BASE_URL}{año_anterior}-{mes_anterior:02d}.zip"
 
         logging.info(f"URL del mes actual: {url_mes_actual}")
         logging.info(f"URL del mes anterior: {url_mes_anterior}")
 
-        # Download and process licitaciones
+        # Descargar y procesar licitaciones
         df_mes_actual = procesar_licitaciones(url_mes_actual)
         df_mes_anterior = procesar_licitaciones(url_mes_anterior)
 
-        # Integrate SICEP licitaciones
+        # Integrar licitaciones de SICEP
         df_sicep = integrar_licitaciones_sicep(worksheet_sicep)
 
-        # Concatenate all licitaciones
+        # Concatenar todas las licitaciones
         df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
         logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
 
-        # Remove diacritics and convert to lowercase
+        # Eliminar tildes y convertir a minúsculas
         df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
         df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
 
-        # Filter licitaciones with 'CodigoEstado' = 5
+        # Filtrar licitaciones con 'CodigoEstado' = 5
         if 'CodigoEstado' in df_licitaciones.columns:
             df_licitaciones = df_licitaciones[df_licitaciones['CodigoEstado'] == 5]
             logging.info(f"Filtradas licitaciones con 'CodigoEstado' = 5. Total: {len(df_licitaciones)}")
@@ -598,32 +680,33 @@ def procesar_licitaciones_y_generar_ranking(
             df_licitaciones = pd.DataFrame()
             logging.warning("'CodigoEstado' no está en las columnas. Se creó un DataFrame vacío.")
 
-        # Select important columns
+        # Seleccionar columnas importantes
         df_licitaciones = df_licitaciones[df_licitaciones.columns.intersection(COLUMNAS_IMPORTANTES)]
 
-        # Add missing columns with None
+        # Añadir columnas faltantes con None
         for columna in COLUMNAS_IMPORTANTES:
             if columna not in df_licitaciones.columns:
                 df_licitaciones[columna] = None
 
         logging.info(f"Seleccionadas columnas importantes. Total de licitaciones: {len(df_licitaciones)}")
 
-        # Convert date columns
+        # Convertir columnas de fechas
         for col in ['FechaCreacion', 'FechaCierre']:
             if col in df_licitaciones.columns:
                 df_licitaciones[col] = pd.to_datetime(df_licitaciones[col], errors='coerce')
-        
+
+        # Eliminar filas con fechas inválidas
         df_licitaciones.dropna(subset=['FechaCreacion', 'FechaCierre'], inplace=True)
         logging.info("Fechas convertidas y filas con fechas inválidas eliminadas.")
 
-        # Apply minimum date filters
+        # Aplicar filtros mínimos de fechas
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
         logging.info(f"Fechas después del filtro de publicación: {df_licitaciones['FechaCreacion'].unique()}")
 
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
         logging.info(f"Licitaciones filtradas: {len(df_licitaciones)} después de aplicar los filtros de publicación y cierre.")
 
-        # Upload filtered licitaciones to Hoja 7
+        # Subir licitaciones filtradas a Hoja 7
         if not df_licitaciones.empty:
             data_to_upload = [df_licitaciones.columns.values.tolist()] + df_licitaciones.values.tolist()
             data_to_upload = [[str(x) for x in row] for row in data_to_upload]
@@ -642,22 +725,22 @@ def procesar_licitaciones_y_generar_ranking(
         else:
             logging.warning("No se procesaron licitaciones para subir a Google Sheets.")
 
-        # Eliminate selected licitaciones from Hoja 7 based on Hoja 6
+        # Eliminar licitaciones seleccionadas de Hoja 7
         eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
 
-        # Obtain necessary data for scoring
-        palabras_clave = set(obtener_palabras_clave(worksheet_inicio))
+        # Obtener datos necesarios para el puntaje
+        palabras_clave_set = obtener_palabras_clave(worksheet_inicio)
         lista_negra = obtener_lista_negra(worksheet_lista_negra)
         rubros_y_productos = obtener_rubros_y_productos(worksheet_rubros)
         puntaje_clientes = obtener_puntaje_clientes(worksheet_clientes)
         ponderaciones = obtener_ponderaciones(worksheet_inicio)
 
-        # Generate ranking
+        # Generar el ranking
         generar_ranking(
             worksheet_ranking,
             worksheet_ranking_no_relativo,
             worksheet_licitaciones_activas,
-            palabras_clave,
+            palabras_clave_set,
             lista_negra,
             rubros_y_productos,
             puntaje_clientes,
@@ -667,77 +750,6 @@ def procesar_licitaciones_y_generar_ranking(
     except Exception as e:
         logging.error(f"Error en procesar_licitaciones_y_generar_ranking: {e}", exc_info=True)
         raise
-
-# -------------------------- Elimination Function --------------------------
-
-def eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas):
-    """
-    Removes licitaciones from Hoja 7 based on selected 'CodigoExterno' in Hoja 6.
-
-    Args:
-        worksheet_seleccion (gspread.Worksheet): Worksheet containing selected 'CodigoExterno'.
-        worksheet_licitaciones_activas (gspread.Worksheet): Worksheet containing active licitaciones.
-    """
-    try:
-        codigos_seleccionados = worksheet_seleccion.col_values(1)[3:]  # Assuming 'CodigoExterno' in first column starting from row 4
-        codigos_seleccionados = set([codigo.lower() for codigo in codigos_seleccionados if codigo])
-        logging.info(f"Total de 'CodigoExterno' seleccionados para eliminar: {len(codigos_seleccionados)}")
-
-        licitaciones = worksheet_licitaciones_activas.get_all_values()
-        if not licitaciones or len(licitaciones) < 2:
-            logging.warning("No hay licitaciones en la Hoja 7 para procesar.")
-            return
-
-        df_licitaciones = pd.DataFrame(licitaciones[1:], columns=licitaciones[0])
-        logging.info(f"Total de licitaciones en la Hoja 7 antes de filtrar: {len(df_licitaciones)}")
-
-        df_licitaciones_filtrado = df_licitaciones[~df_licitaciones['CodigoExterno'].str.lower().isin(codigos_seleccionados)]
-        logging.info(f"Total de licitaciones en la Hoja 7 después de filtrar: {len(df_licitaciones_filtrado)}")
-
-        # Prepare data for upload
-        data_to_upload = [df_licitaciones_filtrado.columns.values.tolist()] + df_licitaciones_filtrado.values.tolist()
-        data_to_upload = [[str(x) for x in row] for row in data_to_upload]
-
-        # Update Hoja 7
-        worksheet_licitaciones_activas.clear()
-        logging.info("Contenido de la Hoja 7 borrado antes de actualizar con datos filtrados.")
-
-        actualizar_hoja(worksheet_licitaciones_activas, 'A1', data_to_upload)
-        logging.info(f"Se eliminaron {len(codigos_seleccionados)} licitaciones seleccionadas de la Hoja 7.")
-    except APIError as e:
-        logging.error(f"APIError al eliminar licitaciones seleccionadas: {e}", exc_info=True)
-        raise
-    except Exception as e:
-        logging.error(f"Error al eliminar licitaciones seleccionadas: {e}", exc_info=True)
-        raise
-
-# -------------------------- Ponderaciones Function --------------------------
-
-def obtener_ponderaciones(worksheet_inicio):
-    """
-    Retrieves ponderaciones from Hoja 1.
-
-    Args:
-        worksheet_inicio (gspread.Worksheet): The worksheet containing ponderaciones.
-
-    Returns:
-        dict: A dictionary with ponderaciones.
-    """
-    try:
-        ponderaciones_valores = obtener_rango_hoja(worksheet_inicio, 'K11:K43')
-        ponderaciones = {
-            'Puntaje Rubro': float(ponderaciones_valores[0][0].strip('%')) / 100,
-            'Puntaje Palabra': float(ponderaciones_valores[14][0].strip('%')) / 100,
-            'Puntaje Clientes': float(ponderaciones_valores[28][0].strip('%')) / 100,
-            'Puntaje Monto': float(ponderaciones_valores[32][0].strip('%')) / 100
-        }
-        logging.info(f"Ponderaciones obtenidas: {ponderaciones}")
-        return ponderaciones
-    except Exception as e:
-        logging.error(f"Error al obtener ponderaciones: {e}", exc_info=True)
-        raise
-
-# -------------------------- Ranking Generation Function --------------------------
 
 def generar_ranking(
     worksheet_ranking,
@@ -750,20 +762,20 @@ def generar_ranking(
     ponderaciones
 ):
     """
-    Generates the ranking of licitaciones and uploads the results to Google Sheets.
+    Genera el ranking de licitaciones y sube los resultados a Google Sheets.
 
     Args:
-        worksheet_ranking (gspread.Worksheet): Worksheet to upload the final ranking.
-        worksheet_ranking_no_relativo (gspread.Worksheet): Worksheet to upload non-relative scores.
-        worksheet_licitaciones_activas (gspread.Worksheet): Worksheet containing active licitaciones.
-        palabras_clave_set (set): A set of keyword phrases.
-        lista_negra (list): A list of blacklist phrases.
-        rubros_y_productos (dict): A dictionary mapping rubros to productos.
-        puntaje_clientes (dict): A dictionary mapping clientes to scores.
-        ponderaciones (dict): A dictionary containing ponderaciones.
+        worksheet_ranking (gspread.Worksheet): Hoja 2 para subir el ranking final.
+        worksheet_ranking_no_relativo (gspread.Worksheet): Hoja 8 para subir puntajes no relativos.
+        worksheet_licitaciones_activas (gspread.Worksheet): Hoja 7 con licitaciones activas.
+        palabras_clave_set (set): Conjunto de palabras clave.
+        lista_negra (set): Conjunto de frases de la lista negra.
+        rubros_y_productos (dict): Diccionario mapeando rubros a productos.
+        puntaje_clientes (dict): Diccionario mapeando clientes a puntajes.
+        ponderaciones (dict): Diccionario con ponderaciones.
     """
     try:
-        # Load licitaciones from Hoja 7
+        # Cargar licitaciones desde Hoja 7
         licitaciones = worksheet_licitaciones_activas.get_all_values()
         if not licitaciones or len(licitaciones) < 2:
             logging.warning("No hay licitaciones en la Hoja 7 para procesar.")
@@ -772,16 +784,16 @@ def generar_ranking(
         df_licitaciones = pd.DataFrame(licitaciones[1:], columns=licitaciones[0])
         logging.info(f"Licitaciones cargadas desde la Hoja 7. Total: {len(df_licitaciones)}")
 
-        # Filter 'TiempoDuracionContrato' != 0
+        # Filtrar 'TiempoDuracionContrato' != 0
         df_licitaciones = df_licitaciones[df_licitaciones['TiempoDuracionContrato'] != '0']
         logging.info(f"Filtradas licitaciones con 'TiempoDuracionContrato' != 0. Total: {len(df_licitaciones)}")
 
-        # Exclude health-related organizations
+        # Excluir organizaciones relacionadas con la salud
         regex_excluir = re.compile('|'.join(SALUD_EXCLUIR), re.IGNORECASE)
         df_licitaciones = df_licitaciones[~df_licitaciones['NombreOrganismo'].str.contains(regex_excluir, na=False)]
         logging.info(f"Filtradas licitaciones relacionadas con salud. Total: {len(df_licitaciones)}")
 
-        # Group by 'CodigoExterno'
+        # Agrupar por 'CodigoExterno'
         df_licitaciones_agrupado = df_licitaciones.groupby('CodigoExterno').agg({
             'Nombre': 'first',
             'NombreOrganismo': 'first',
@@ -795,7 +807,7 @@ def generar_ranking(
         }).reset_index()
         logging.info(f"Licitaciones agrupadas por 'CodigoExterno'. Total: {len(df_licitaciones_agrupado)}")
 
-        # Calculate scores
+        # Calcular puntajes
         df_licitaciones_agrupado['Puntaje Palabra'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_palabra(
                 row['Nombre'], row['Descripcion'], palabras_clave_set, lista_negra
@@ -821,7 +833,7 @@ def generar_ranking(
         )
         logging.info("Puntaje por clientes calculado.")
 
-        # Calculate total score
+        # Calcular puntaje total
         df_licitaciones_agrupado['Puntaje Total'] = (
             df_licitaciones_agrupado['Puntaje Rubro'] +
             df_licitaciones_agrupado['Puntaje Palabra'] +
@@ -830,7 +842,7 @@ def generar_ranking(
         )
         logging.info("Puntaje total calculado.")
 
-        # Save non-relative scores to Hoja 8
+        # Guardar puntajes NO relativos en Hoja 8
         df_no_relativos = df_licitaciones_agrupado[
             ['CodigoExterno', 'Nombre', 'NombreOrganismo', 'Puntaje Rubro', 
              'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
@@ -842,28 +854,28 @@ def generar_ranking(
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
 
-        # Select Top 100 licitaciones
+        # Seleccionar Top 100 licitaciones
         df_top_100 = df_licitaciones_agrupado.sort_values(
             by=['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes'], 
             ascending=False
         ).head(100)
         logging.info("Top 100 licitaciones seleccionadas.")
 
-        # Calculate totals for each criterion
+        # Calcular totales para cada criterio dentro del Top 100
         total_rubro = df_top_100['Puntaje Rubro'].sum()
         total_palabra = df_top_100['Puntaje Palabra'].sum()
         total_monto = df_top_100['Puntaje Monto'].sum()
         total_clientes = df_top_100['Puntaje Clientes'].sum()
         logging.info("Totales calculados para cada criterio dentro del Top 100.")
 
-        # Adjust relative scores to sum to 100
+        # Ajustar puntajes relativos para que sumen 100
         df_top_100['Puntaje Relativo Rubro'] = (df_top_100['Puntaje Rubro'] / total_rubro * 100) if total_rubro > 0 else 0
         df_top_100['Puntaje Relativo Palabra'] = (df_top_100['Puntaje Palabra'] / total_palabra * 100) if total_palabra > 0 else 0
         df_top_100['Puntaje Relativo Monto'] = (df_top_100['Puntaje Monto'] / total_monto * 100) if total_monto > 0 else 0
         df_top_100['Puntaje Relativo Clientes'] = (df_top_100['Puntaje Clientes'] / total_clientes * 100) if total_clientes > 0 else 0
         logging.info("Puntajes relativos ajustados para que sumen 100.")
 
-        # Calculate 'Puntaje Total SUMAPRODUCTO'
+        # Calcular 'Puntaje Total SUMAPRODUCTO'
         df_top_100['Puntaje Total SUMAPRODUCTO'] = (
             df_top_100['Puntaje Relativo Rubro'] * ponderaciones['Puntaje Rubro'] +
             df_top_100['Puntaje Relativo Palabra'] * ponderaciones['Puntaje Palabra'] +
@@ -872,11 +884,11 @@ def generar_ranking(
         )
         logging.info("Puntaje Total SUMAPRODUCTO calculado.")
 
-        # Sort Top 100 by 'Puntaje Total SUMAPRODUCTO'
+        # Ordenar Top 100 por 'Puntaje Total SUMAPRODUCTO'
         df_top_100 = df_top_100.sort_values(by='Puntaje Total SUMAPRODUCTO', ascending=False)
         logging.info("Top 100 licitaciones ordenadas por 'Puntaje Total SUMAPRODUCTO'.")
 
-        # Create final DataFrame for Hoja 2
+        # Crear estructura para Hoja 2
         df_top_100['#'] = range(1, len(df_top_100) + 1)
         df_top_100 = df_top_100.rename(columns={
             'Puntaje Relativo Rubro': 'Rubro',
@@ -891,43 +903,42 @@ def generar_ranking(
             'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
         ]]
 
-        # Ensure correct decimal formatting
-        df_final['Palabra'] = df_final['Palabra'].astype(float).round(2)
-        df_final['Monto'] = df_final['Monto'].astype(float).round(2)
-        df_final['Puntaje Final'] = df_final['Puntaje Final'].astype(float).round(2)
+        # Asegurar formato correcto de decimales
+        for col in ['Palabra', 'Monto', 'Puntaje Final']:
+            df_final[col] = df_final[col].astype(float).round(2)
 
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
         data_final = [[str(x) if isinstance(x, str) else x for x in row] for row in data_final]
 
-        # Preserve the value of A1 in Hoja 2
+        # Preservar el valor de la celda A1 en Hoja 2
         nombre_a1 = worksheet_ranking.acell('A1').value if worksheet_ranking.acell('A1').value else ""
 
-        # Clear Hoja 2 and restore A1
+        # Limpiar Hoja 2 y restaurar A1
         worksheet_ranking.clear()
         worksheet_ranking.update('A1', [[nombre_a1]])
         logging.info("Hoja 2 limpiada y A1 restaurado.")
 
-        # Upload the final ranking starting from A3
+        # Subir el ranking final a Hoja 2
         actualizar_hoja(worksheet_ranking, 'A3', data_final)
         logging.info("Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.")
     except Exception as e:
         logging.error(f"Error al generar el ranking: {e}", exc_info=True)
         raise
 
-# -------------------------- Main Function --------------------------
+# -------------------------- Función Principal --------------------------
 
 def main():
     """
-    The main function orchestrating the entire processing workflow.
+    Función principal que orquesta todo el flujo de procesamiento.
     """
     try:
-        # Setup logging
+        # Configurar logging
         setup_logging()
 
-        # Authenticate with Google Sheets
+        # Autenticar con Google Sheets
         gc = authenticate_google_sheets()
 
-        # Open the spreadsheet
+        # Abrir la hoja de cálculo
         try:
             sh = gc.open_by_key(SHEET_ID)
             logging.info(f"Spreadsheet con ID {SHEET_ID} abierto exitosamente.")
@@ -938,22 +949,22 @@ def main():
             logging.error(f"Error al abrir Spreadsheet: {e}", exc_info=True)
             raise
 
-        # Retrieve worksheets
+        # Recuperar todas las worksheets necesarias de una vez para minimizar las solicitudes
         try:
-            worksheet_inicio = get_worksheet_with_retry(sh, 0)  # Hoja Inicio
-            worksheet_ranking = get_worksheet_with_retry(sh, 1)  # Hoja Ranking
-            worksheet_rubros = get_worksheet_with_retry(sh, 2)  # Hoja Rubros
-            worksheet_clientes = get_worksheet_with_retry(sh, 3)  # Hoja Clientes
-            worksheet_seleccion = get_worksheet_with_retry(sh, 5)  # Hoja Seleccion
-            worksheet_licitaciones_activas = get_worksheet_with_retry(sh, 6)  # Hoja Licitaciones Activas y Duplicadas
-            worksheet_ranking_no_relativo = get_worksheet_with_retry(sh, 7)  # Hoja Ranking no relativo
-            worksheet_lista_negra = get_worksheet_with_retry(sh, 9)  # Hoja Lista Negra Palabras
-            worksheet_sicep = get_worksheet_with_retry(sh, 10)  # Hoja Licitaciones Sicep
+            worksheet_inicio = get_worksheet_with_retry(sh, 0)        # Hoja 1: Inicio
+            worksheet_ranking = get_worksheet_with_retry(sh, 1)       # Hoja 2: Ranking
+            worksheet_rubros = get_worksheet_with_retry(sh, 2)        # Hoja 3: Rubros
+            worksheet_clientes = get_worksheet_with_retry(sh, 3)      # Hoja 4: Clientes
+            worksheet_seleccion = get_worksheet_with_retry(sh, 5)     # Hoja 6: Seleccion
+            worksheet_licitaciones_activas = get_worksheet_with_retry(sh, 6)  # Hoja 7: Licitaciones Activas y Duplicadas
+            worksheet_ranking_no_relativo = get_worksheet_with_retry(sh, 7)  # Hoja 8: Ranking no relativo
+            worksheet_lista_negra = get_worksheet_with_retry(sh, 9)   # Hoja 10: Lista Negra Palabras
+            worksheet_sicep = get_worksheet_with_retry(sh, 10)        # Hoja 11: Licitaciones Sicep
         except Exception as e:
             logging.error(f"Error al obtener una o más hojas: {e}", exc_info=True)
             raise
 
-        # Execute main processing
+        # Ejecutar el procesamiento principal
         procesar_licitaciones_y_generar_ranking(
             worksheet_inicio,
             worksheet_ranking,
@@ -970,7 +981,7 @@ def main():
         logging.critical(f"Script finalizado con errores: {e}", exc_info=True)
         raise
 
-# -------------------------- Entry Point --------------------------
+# -------------------------- Punto de Entrada --------------------------
 
 if __name__ == "__main__":
     main()
