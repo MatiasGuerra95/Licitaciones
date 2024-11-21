@@ -67,9 +67,9 @@ RUBROS_RANGES = {
     'rubro3': 'I13'
 }
 PRODUCTOS_RANGES = {
-    'rubro1': [f'C{row}' for row in range(14, 24)],
-    'rubro2': [f'F{row}' for row in range(14, 24)],
-    'rubro3': [f'I{row}' for row in range(14, 24)]
+    'rubro1': ['C14', 'C15', 'C16', 'C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23'],
+    'rubro2': ['F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23'],
+    'rubro3': ['I14', 'I15', 'I16', 'I17', 'I18', 'I19', 'I20', 'I21', 'I22', 'I23']
 }
 
 # Columnas Importantes
@@ -189,6 +189,20 @@ def obtener_rango_hoja(worksheet, rango):
         logging.error(f"Error al obtener valores del rango {rango}: {e}", exc_info=True)
         raise
 
+def obtener_rango_disjunto(worksheet, rangos):
+    """
+    Obtiene valores de celdas disjuntas de una hoja de cálculo.
+    """
+    valores = []
+    for rango in rangos:
+        try:
+            valores.extend(worksheet.get(rango))
+            logging.info(f"Valores obtenidos del rango {rango}.")
+        except Exception as e:
+            logging.error(f"Error al obtener valores del rango {rango}: {e}", exc_info=True)
+            raise
+    return valores    
+
 def obtener_palabras_clave(worksheet):
     """
     Recupera y procesa frases clave desde rangos especificados en la hoja.
@@ -253,8 +267,8 @@ def obtener_rubros_y_productos(worksheet):
 
         # Extraer productos
         productos = {
-            key: [item[0].strip().lower() for item in valores if item and item[0].strip()]
-            for key, valores in zip(PRODUCTOS_RANGES.keys(), valores_rangos[len(RUBROS_RANGES):])
+            key: obtener_rango_disjunto(worksheet, rangos)
+            for key, rangos in PRODUCTOS_RANGES.items()
         }
 
         # Mapear rubros a productos
