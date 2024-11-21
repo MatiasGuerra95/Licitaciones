@@ -284,11 +284,9 @@ else:
     logging.error("Las columnas 'FechaCreacion' o 'FechaCierre' no están en el DataFrame.")
 
 
-# Ajustar el filtro de FechaCreacion para incluir todo el mes actual
-fecha_inicio_mes_actual = datetime(año_actual, mes_actual, 1)
 
 # Aplicar filtro mínimo usando la fecha mínima entre el inicio del mes actual y fecha_min_publicacion
-fecha_filtro_inicio = min(fecha_min_publicacion, fecha_inicio_mes_actual)
+fecha_filtro_inicio = fecha_min_publicacion
 
 # Filtrar licitaciones para incluir solo las con FechaCreacion posterior o igual a fecha_filtro_inicio
 df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_filtro_inicio]
