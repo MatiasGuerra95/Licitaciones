@@ -107,18 +107,6 @@ except Exception as e:
     logging.error(f"Error al extraer fechas de la Hoja 1: {e}")
     raise
 
-try:
-    # Asegurarse de que las fechas sean cadenas antes de intentar convertirlas
-    if isinstance(fecha_min_publicacion, str):
-        fecha_min_publicacion = datetime.strptime(fecha_min_publicacion, '%Y-%m-%d')
-    if isinstance(fecha_min_cierre, str):
-        fecha_min_cierre = datetime.strptime(fecha_min_cierre, '%Y-%m-%d')
-    
-    logging.info(f"Fecha mínima de publicación procesada: {fecha_min_publicacion}")
-    logging.info(f"Fecha mínima de cierre procesada: {fecha_min_cierre}")
-except ValueError as e:
-    logging.error(f"Formato de fecha incorrecto: {e}")
-    raise
 
 # Determinar el mes y el año actuales para descargar los archivos de licitaciones del mes actual y el mes anterior
 now = datetime.now()
