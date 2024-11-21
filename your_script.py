@@ -111,6 +111,7 @@ except Exception as e:
 try:
     fecha_min_publicacion = datetime.strptime(fecha_min_publicacion, '%Y-%m-%d')
     fecha_min_cierre = datetime.strptime(fecha_min_cierre, '%Y-%m-%d')
+    logging.info(f"Fecha mínima de cierre extraída: {fecha_min_cierre}")
 except ValueError as e:
     logging.error(f"Formato de fecha incorrecto: {e}")
     raise
@@ -273,10 +274,11 @@ if 'FechaCreacion' in df_licitaciones.columns and 'FechaCierre' in df_licitacion
     df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
     df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
     df_licitaciones = df_licitaciones.dropna(subset=['FechaCreacion', 'FechaCierre'])
-    logging.info(f"Licitaciones después de eliminar fechas nulas: {len(df_licitaciones)}")
-    logging.info(f"Fechas en 'FechaCreacion' antes del filtro: {df_licitaciones['FechaCreacion'].unique()}")  # Confirmación adicional
+    logging.info(f"Columnas 'FechaCreacion' y 'FechaCierre' convertidas a datetime correctamente.")
+    logging.info(f"Fechas en 'FechaCierre' después de conversión: {df_licitaciones['FechaCierre'].unique()}")
 else:
     logging.error("Las columnas 'FechaCreacion' o 'FechaCierre' no están en el DataFrame.")
+
 
 # Ajustar el filtro de FechaCreacion para incluir todo el mes actual
 fecha_inicio_mes_actual = datetime(año_actual, mes_actual, 1)
