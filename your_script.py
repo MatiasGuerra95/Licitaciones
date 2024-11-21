@@ -116,6 +116,28 @@ except ValueError as e:
     logging.error(f"Formato de fecha incorrecto: {e}")
     raise
 
+# Validar si la fecha extraída está en el formato correcto y registrar en el log
+try:
+    fecha_min_publicacion = datetime.strptime(fecha_min_publicacion, '%Y-%m-%d')
+    logging.info(f"Fecha mínima de publicación válida: {fecha_min_publicacion}")
+except ValueError:
+    logging.error(f"Error en el formato de fecha mínima de publicación: {fecha_min_publicacion}")
+    raise
+
+    
+# Validar si la fecha mínima de cierre está en el formato correcto y registrar en el log
+try:
+    fecha_min_cierre = datetime.strptime(fecha_min_cierre, '%Y-%m-%d')
+    logging.info(f"Fecha mínima de cierre válida: {fecha_min_cierre}")
+except ValueError:
+    logging.error(f"Error en el formato de fecha mínima de cierre: {fecha_min_cierre}")
+    raise
+
+    logging.info(f"Fecha mínima de cierre extraída: {fecha_min_cierre}")
+except ValueError as e:
+    logging.error(f"Formato de fecha incorrecto: {e}")
+    raise
+
 # Determinar el mes y el año actuales para descargar los archivos de licitaciones del mes actual y el mes anterior
 now = datetime.now()
 mes_actual = now.month
@@ -637,7 +659,7 @@ def procesar_licitaciones_y_generar_ranking():
         )
         logging.info("Puntaje total calculado.")
     
-        # Guardar los puntajes NO relativos en una hoja aparte (Hoja 10)
+        # Guardar los puntajes NO relativos en una hoja aparte 8)
         df_no_relativos = df_licitaciones_agrupado[
             ['CodigoExterno', 'Nombre', 'NombreOrganismo', 'Puntaje Rubro', 
              'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
@@ -646,8 +668,8 @@ def procesar_licitaciones_y_generar_ranking():
         data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
         data_no_relativos = [[str(x) for x in row] for row in data_no_relativos]
     
-        actualizar_hoja(worksheet_hoja10, 'A1', data_no_relativos)
-        logging.info("Puntajes no relativos subidos a la Hoja 10 exitosamente.")
+        actualizar_hoja(worksheet_hoja8, 'A1', data_no_relativos)
+        logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
     
         # Ordenar las licitaciones por 'Puntaje Total' para seleccionar las 100 mejores
         df_top_100 = df_licitaciones_agrupado.sort_values(
