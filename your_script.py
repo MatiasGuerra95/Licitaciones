@@ -119,9 +119,7 @@ try:
 except ValueError as e:
     logging.error(f"Formato de fecha incorrecto: {e}")
     raise
-    fecha_min_publicacion = str(fecha_min_publicacion)
 
-    fecha_min_cierre = str(fecha_min_cierre)
 # Determinar el mes y el año actuales para descargar los archivos de licitaciones del mes actual y el mes anterior
 now = datetime.now()
 mes_actual = now.month
@@ -278,7 +276,13 @@ logging.info(f"Seleccionadas columnas importantes. Total de licitaciones: {len(d
 # Convertir fechas en el DataFrame
 if 'FechaCreacion' in df_licitaciones.columns and 'FechaCierre' in df_licitaciones.columns:
     df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
+    df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
     df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
+    logging.info(f"Fechas convertidas: Creación - {df_licitaciones['FechaCreacion'].unique()} Cierre - {df_licitaciones['FechaCierre'].unique()}")
+    df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
+    df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
+    df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
+    logging.info(f"Fechas convertidas: Creación - {df_licitaciones['FechaCreacion'].unique()} Cierre - {df_licitaciones['FechaCierre'].unique()}")
     df_licitaciones = df_licitaciones.dropna(subset=['FechaCreacion', 'FechaCierre'])
     logging.info(f"Columnas 'FechaCreacion' y 'FechaCierre' convertidas a datetime correctamente.")
     logging.info(f"Fechas en 'FechaCierre' después de conversión: {df_licitaciones['FechaCierre'].unique()}")
@@ -291,11 +295,13 @@ else:
 fecha_filtro_inicio = fecha_min_publicacion
 
 # Filtrar licitaciones para incluir solo las con FechaCreacion posterior o igual a fecha_filtro_inicio
-df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= pd.to_datetime(fecha_min_publicacion)]
+df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_filtro_inicio]
+logging.info(f"Fechas después del filtro de publicación: {df_licitaciones['FechaCreacion'].unique()}")
 logging.info(f"Fechas en 'FechaCreacion' después del filtro: {df_licitaciones['FechaCreacion'].unique()}")  # Confirmación adicional
 
 # Filtrar licitaciones por FechaCierre
-df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= pd.to_datetime(fecha_min_cierre)]
+df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
+logging.info(f"Fechas después del filtro de cierre: {df_licitaciones['FechaCierre'].unique()}")
 logging.info(f"Licitaciones filtradas: {len(df_licitaciones)} después de aplicar los filtros de publicación y cierre.")
 
 # Convertir el DataFrame a una lista de listas para subirlo a Google Sheets
