@@ -107,33 +107,15 @@ except Exception as e:
     logging.error(f"Error al extraer fechas de la Hoja 1: {e}")
     raise
 
-# Convertir las fechas extraídas a objetos datetime
 try:
-    fecha_min_publicacion = datetime.strptime(fecha_min_publicacion, '%Y-%m-%d')
-    fecha_min_cierre = datetime.strptime(fecha_min_cierre, '%Y-%m-%d')
-    logging.info(f"Fecha mínima de cierre extraída: {fecha_min_cierre}")
-except ValueError as e:
-    logging.error(f"Formato de fecha incorrecto: {e}")
-    raise
-
-# Validar si la fecha extraída está en el formato correcto y registrar en el log
-try:
-    fecha_min_publicacion = datetime.strptime(fecha_min_publicacion, '%Y-%m-%d')
-    logging.info(f"Fecha mínima de publicación válida: {fecha_min_publicacion}")
-except ValueError:
-    logging.error(f"Error en el formato de fecha mínima de publicación: {fecha_min_publicacion}")
-    raise
-
+    # Asegurarse de que las fechas sean cadenas antes de intentar convertirlas
+    if isinstance(fecha_min_publicacion, str):
+        fecha_min_publicacion = datetime.strptime(fecha_min_publicacion, '%Y-%m-%d')
+    if isinstance(fecha_min_cierre, str):
+        fecha_min_cierre = datetime.strptime(fecha_min_cierre, '%Y-%m-%d')
     
-# Validar si la fecha mínima de cierre está en el formato correcto y registrar en el log
-try:
-    fecha_min_cierre = datetime.strptime(fecha_min_cierre, '%Y-%m-%d')
-    logging.info(f"Fecha mínima de cierre válida: {fecha_min_cierre}")
-except ValueError:
-    logging.error(f"Error en el formato de fecha mínima de cierre: {fecha_min_cierre}")
-    raise
-
-    logging.info(f"Fecha mínima de cierre extraída: {fecha_min_cierre}")
+    logging.info(f"Fecha mínima de publicación procesada: {fecha_min_publicacion}")
+    logging.info(f"Fecha mínima de cierre procesada: {fecha_min_cierre}")
 except ValueError as e:
     logging.error(f"Formato de fecha incorrecto: {e}")
     raise
