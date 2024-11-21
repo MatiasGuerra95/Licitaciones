@@ -109,18 +109,19 @@ except Exception as e:
 
 try:
     # Asegurarse de que las fechas sean cadenas antes de intentar convertirlas
-    if not isinstance(fecha_min_publicacion, datetime):
+    if isinstance(fecha_min_publicacion, str):
         fecha_min_publicacion = datetime.strptime(fecha_min_publicacion, '%Y-%m-%d')
-    if not isinstance(fecha_min_cierre, datetime):
+    if isinstance(fecha_min_cierre, str):
         fecha_min_cierre = datetime.strptime(fecha_min_cierre, '%Y-%m-%d')
-
     
     logging.info(f"Fecha mínima de publicación procesada: {fecha_min_publicacion}")
     logging.info(f"Fecha mínima de cierre procesada: {fecha_min_cierre}")
 except ValueError as e:
     logging.error(f"Formato de fecha incorrecto: {e}")
     raise
+    fecha_min_publicacion = str(fecha_min_publicacion)
 
+    fecha_min_cierre = str(fecha_min_cierre)
 # Determinar el mes y el año actuales para descargar los archivos de licitaciones del mes actual y el mes anterior
 now = datetime.now()
 mes_actual = now.month
@@ -285,16 +286,17 @@ else:
     logging.error("Las columnas 'FechaCreacion' o 'FechaCierre' no están en el DataFrame.")
 
 
+
+# Aplicar filtro mínimo usando la fecha mínima entre el inicio del mes actual y fecha_min_publicacion
+fecha_filtro_inicio = fecha_min_publicacion
+
 # Filtrar licitaciones para incluir solo las con FechaCreacion posterior o igual a fecha_filtro_inicio
-logging.info(f"Aplicando filtro de FechaCreacion >= {fecha_min_publicacion}")
-df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
+df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= pd.to_datetime(fecha_min_publicacion)]
 logging.info(f"Fechas en 'FechaCreacion' después del filtro: {df_licitaciones['FechaCreacion'].unique()}")  # Confirmación adicional
 
 # Filtrar licitaciones por FechaCierre
-logging.info(f"Aplicando filtro de FechaCierre >= {fecha_min_cierre}")
-df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
+df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= pd.to_datetime(fecha_min_cierre)]
 logging.info(f"Licitaciones filtradas: {len(df_licitaciones)} después de aplicar los filtros de publicación y cierre.")
-logging.info(f"Licitaciones después de filtrar por fechas: {len(df_licitaciones)}")
 
 # Convertir el DataFrame a una lista de listas para subirlo a Google Sheets
 if not df_licitaciones.empty:
@@ -324,13 +326,6 @@ def eliminar_licitaciones_seleccionadas():
         codigos_seleccionados = worksheet_hoja6.col_values(1)[3:]  # Asumiendo que los 'CodigoExterno' están en la primera columna
         logging.info(f"Total de 'CodigoExterno' seleccionados para eliminar: {len(codigos_seleccionados)}")
     
-    # Línea 330: Confirmar que el DataFrame está filtrado antes de cargar
-        if not df_licitaciones.empty:
-            logging.info(f"Licitaciones válidas para cargar en la Hoja 7: {len(df_licitaciones)}")
-        else:
-            logging.warning("No hay licitaciones válidas después de aplicar filtros de fechas.")
-
-
         # Cargar las licitaciones de la Hoja 7 (el mantenedor)
         licitaciones = worksheet_hoja7.get_all_values()
         df_licitaciones = pd.DataFrame(licitaciones[1:], columns=licitaciones[0])
