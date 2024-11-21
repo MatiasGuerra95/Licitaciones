@@ -171,19 +171,20 @@ def eliminar_tildes(texto):
 
 def obtener_rango_hoja(worksheet, rango):
     """
-    Recupera valores de un rango especificado en una hoja.
-
-    Args:
-        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar datos.
-        rango (str): El rango en notación A1.
-
-    Returns:
-        list: Una lista de listas con los valores.
+    Recupera valores de un rango especificado en una hoja. Soporta rangos simples.
     """
     try:
-        valores = worksheet.get(rango)
-        logging.info(f"Valores obtenidos del rango {rango}.")
-        return valores
+        if ',' in rango:  # Si el rango es disjunto (contiene ',')
+            rangos_individuales = rango.split(',')
+            valores = []
+            for rango_individual in rangos_individuales:
+                valores.extend(worksheet.get(rango_individual))
+            logging.info(f"Valores obtenidos de los rangos disjuntos: {rango}")
+            return valores
+        else:
+            valores = worksheet.get(rango)
+            logging.info(f"Valores obtenidos del rango {rango}.")
+            return valores
     except Exception as e:
         logging.error(f"Error al obtener valores del rango {rango}: {e}", exc_info=True)
         raise
@@ -231,7 +232,7 @@ def obtener_lista_negra(worksheet):
 
 def obtener_rubros_y_productos(worksheet):
     """
-    Recupera rubros y sus correspondientes productos desde la hoja.
+    Recupera rubros y sus correspondientes productos desde la hoja de forma eficiente.
 
     Args:
         worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
@@ -240,28 +241,32 @@ def obtener_rubros_y_productos(worksheet):
         dict: Un diccionario mapeando rubros a sus listas de productos.
     """
     try:
-        # Recuperar todos los rubros de una vez
-        rubros_cells = obtener_rango_hoja(worksheet, ','.join(RUBROS_RANGES.values()))
-        rubros = {key: rubro[0] for key, rubro in zip(RUBROS_RANGES.keys(), rubros_cells)}
-        
-        # Recuperar productos por rubro en bloques
-        productos = {}
-        for key, cells in PRODUCTOS_RANGES.items():
-            # Construir un rango que abarque todas las celdas de productos para este rubro
-            rango = ','.join(cells)
-            productos_cells = obtener_rango_hoja(worksheet, rango)
-            # Filtrar productos no vacíos y convertir a minúsculas
-            productos[key] = [producto[0].lower() for producto in productos_cells if producto and producto[0].strip()]
-        
+        # Obtener rangos en un solo batch
+        rangos = list(RUBROS_RANGES.values()) + [','.join(PRODUCTOS_RANGES[key]) for key in PRODUCTOS_RANGES]
+        valores_rangos = worksheet.batch_get(rangos)
+
+        # Extraer rubros
+        rubros = {
+            key: valores[0][0].strip() if valores and valores[0][0] else None
+            for key, valores in zip(RUBROS_RANGES.keys(), valores_rangos[:len(RUBROS_RANGES)])
+        }
+
+        # Extraer productos
+        productos = {
+            key: [item[0].strip().lower() for item in valores if item and item[0].strip()]
+            for key, valores in zip(PRODUCTOS_RANGES.keys(), valores_rangos[len(RUBROS_RANGES):])
+        }
+
         # Mapear rubros a productos
-        rubros_y_productos = {}
-        for key, rubro in rubros.items():
-            if rubro and rubro.strip():
-                rubro_limpio = eliminar_tildes(rubro.lower())
-                rubros_y_productos[rubro_limpio] = productos.get(key, [])
-        
+        rubros_y_productos = {
+            eliminar_tildes(rubro.lower()): productos.get(key, [])
+            for key, rubro in rubros.items()
+            if rubro
+        }
+
         logging.info(f"Rubros y productos obtenidos: {rubros_y_productos}")
         return rubros_y_productos
+
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
