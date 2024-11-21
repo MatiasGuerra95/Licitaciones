@@ -192,6 +192,13 @@ def obtener_rango_hoja(worksheet, rango):
 def obtener_rango_disjunto(worksheet, rangos):
     """
     Obtiene valores de celdas disjuntas de una hoja de cálculo.
+
+    Args:
+        worksheet (gspread.Worksheet): La hoja de cálculo.
+        rangos (list): Lista de rangos a recuperar.
+
+    Returns:
+        list: Lista de valores obtenidos para cada rango.
     """
     valores = []
     for rango in rangos:
@@ -201,7 +208,8 @@ def obtener_rango_disjunto(worksheet, rangos):
         except Exception as e:
             logging.error(f"Error al obtener valores del rango {rango}: {e}", exc_info=True)
             raise
-    return valores    
+    return valores
+
 
 def obtener_palabras_clave(worksheet):
     """
@@ -255,21 +263,28 @@ def obtener_rubros_y_productos(worksheet):
         dict: Un diccionario mapeando rubros a sus listas de productos.
     """
     try:
-        # Obtener rangos en un solo batch
-        rangos = list(RUBROS_RANGES.values()) + [','.join(PRODUCTOS_RANGES[key]) for key in PRODUCTOS_RANGES]
-        valores_rangos = worksheet.batch_get(rangos)
+        # Rubros
+        rangos_rubros = list(RUBROS_RANGES.values())
+        valores_rubros = obtener_rango_disjunto(worksheet, rangos_rubros)
 
-        # Extraer rubros
         rubros = {
-            key: valores[0][0].strip() if valores and valores[0][0] else None
-            for key, valores in zip(RUBROS_RANGES.keys(), valores_rangos[:len(RUBROS_RANGES)])
+            key: valores[0][0].strip() if valores and valores[0] else None
+            for key, valores in zip(RUBROS_RANGES.keys(), [[v] for v in valores_rubros])
         }
 
-        # Extraer productos
-        productos = {
-            key: obtener_rango_disjunto(worksheet, rangos)
-            for key, rangos in PRODUCTOS_RANGES.items()
-        }
+        # Productos
+        rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
+        valores_productos = obtener_rango_disjunto(worksheet, rangos_productos)
+
+        productos = {}
+        index = 0
+        for key in PRODUCTOS_RANGES.keys():
+            productos[key] = [
+                valores_productos[index + i][0].strip().lower()
+                for i in range(len(PRODUCTOS_RANGES[key]))
+                if valores_productos[index + i] and valores_productos[index + i][0].strip()
+            ]
+            index += len(PRODUCTOS_RANGES[key])
 
         # Mapear rubros a productos
         rubros_y_productos = {
