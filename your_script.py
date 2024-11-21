@@ -411,9 +411,11 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         for rubro, productos in rubros_y_productos.items():
             if rubro in rubro_column:
                 rubros_presentes.add(rubro)
+                logging.info(f"Rubro encontrado: '{rubro}' en '{rubro_column}'")
                 for producto in productos:
                     if producto in productos_column:
                         productos_presentes.add(producto)
+                        logging.info(f"Producto encontrado: '{producto}' en '{productos_column}'")
 
         puntaje_rubro += len(rubros_presentes) * 5
         puntaje_rubro += len(productos_presentes) * 10
@@ -422,6 +424,7 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
+
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
     """
@@ -852,9 +855,14 @@ def generar_ranking(
 
         df_licitaciones_agrupado['Puntaje Rubro'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_rubro(row, rubros_y_productos),
-            axis=1
+        axis=1
         )
-        logging.info("Puntaje por rubros calculado.")
+        # Revisar puntajes inesperados
+        for index, row in df_licitaciones_agrupado.iterrows():
+            if row['Puntaje Rubro'] == 0:
+                logging.warning(f"Licitación {row['CodigoExterno']} tiene puntaje 0 en rubros. Verifica: "
+                        f"Rubro3: {row['Rubro3']}, Productos: {row['Nombre producto genrico']}")
+
 
         df_licitaciones_agrupado['Puntaje Monto'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_monto(row['Tipo'], row['TiempoDuracionContrato']),
@@ -882,8 +890,13 @@ def generar_ranking(
              'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
         ]
 
+        # Convertir a números y limpiar formatos incorrectos
+        df_no_relativos = df_no_relativos.applymap(
+            lambda x: float(x) if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit()) else x
+        )
         data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
-        data_no_relativos = [[str(x) for x in row] for row in data_no_relativos]
+        data_no_relativos = [[str(x).replace("'", "") for x in row] for row in data_no_relativos]
+
 
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
