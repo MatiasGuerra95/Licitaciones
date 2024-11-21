@@ -271,7 +271,7 @@ if 'FechaCreacion' in df_licitaciones.columns and 'FechaCierre' in df_licitacion
     df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
     df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
     logging.info(f"Fechas convertidas: Creación - {df_licitaciones['FechaCreacion'].unique()} Cierre - {df_licitaciones['FechaCierre'].unique()}")
-    df_licitaciones = df_licitaciones.dropna(subset=['FechaCreacion', 'FechaCierre'])
+ 
     logging.info(f"Columnas 'FechaCreacion' y 'FechaCierre' convertidas a datetime correctamente.")
     logging.info(f"Fechas en 'FechaCierre' después de conversión: {df_licitaciones['FechaCierre'].unique()}")
 else:
