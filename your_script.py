@@ -240,35 +240,31 @@ def obtener_rubros_y_productos(worksheet):
         dict: Un diccionario mapeando rubros a sus listas de productos.
     """
     try:
-        # Recuperar rubros individualmente
-        rubros = {
-            key: worksheet.acell(cell).value.strip() if worksheet.acell(cell).value else None
-            for key, cell in RUBROS_RANGES.items()
-        }
-
-        # Recuperar productos por rubro
+        # Recuperar todos los rubros de una vez
+        rubros_cells = obtener_rango_hoja(worksheet, ','.join(RUBROS_RANGES.values()))
+        rubros = {key: rubro[0] for key, rubro in zip(RUBROS_RANGES.keys(), rubros_cells)}
+        
+        # Recuperar productos por rubro en bloques
         productos = {}
         for key, cells in PRODUCTOS_RANGES.items():
-            productos[key] = [
-                worksheet.acell(cell).value.strip().lower()
-                for cell in cells
-                if worksheet.acell(cell).value
-            ]
-
+            # Construir un rango que abarque todas las celdas de productos para este rubro
+            rango = ','.join(cells)
+            productos_cells = obtener_rango_hoja(worksheet, rango)
+            # Filtrar productos no vacíos y convertir a minúsculas
+            productos[key] = [producto[0].lower() for producto in productos_cells if producto and producto[0].strip()]
+        
         # Mapear rubros a productos
-        rubros_y_productos = {
-            eliminar_tildes(rubro.lower()): productos.get(key, [])
-            for key, rubro in rubros.items()
-            if rubro
-        }
-
+        rubros_y_productos = {}
+        for key, rubro in rubros.items():
+            if rubro and rubro.strip():
+                rubro_limpio = eliminar_tildes(rubro.lower())
+                rubros_y_productos[rubro_limpio] = productos.get(key, [])
+        
         logging.info(f"Rubros y productos obtenidos: {rubros_y_productos}")
         return rubros_y_productos
-
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
-
 
 def obtener_puntaje_clientes(worksheet):
     """
@@ -462,7 +458,7 @@ def actualizar_hoja(worksheet, rango, datos):
         Exception: Para cualquier otro error.
     """
     try:
-        worksheet.update(rango, datos)
+        worksheet.update(range_name=rango, values=datos)
         logging.info(f"Hoja actualizada exitosamente en el rango {rango}.")
     except APIError as e:
         logging.warning(f"APIError al actualizar la Hoja en el rango {rango}: {e}. Reintentando...")
