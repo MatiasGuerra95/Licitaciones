@@ -656,9 +656,19 @@ def eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitacio
     except Exception as e:
         logging.error(f"Error al eliminar licitaciones seleccionadas: {e}", exc_info=True)
         raise
+    
+@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(5), retry=retry_if_exception_type(APIError))
+def obtener_rango_hoja(worksheet, rango):
+    try:
+        return worksheet.get(rango)
+    except APIError as e:
+        logging.error(f"Error al obtener rango de la hoja: {e}")
+        raise
 
-# -------------------------- Función Principal de Procesamiento --------------------------
+@retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(5), retry=retry_if_exception_type(APIError))
 
+
+# -------------------------- Función Principal de Procesamiento --------------------------#
 def procesar_licitaciones_y_generar_ranking(
     worksheet_inicio,
     worksheet_ranking,
