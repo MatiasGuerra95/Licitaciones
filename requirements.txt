@@ -9,3 +9,5 @@ zipfile36
 tenacity
 selenium
 webdriver-manager
+numpy>=1.0.0
+openpyxl>=3.0.0
