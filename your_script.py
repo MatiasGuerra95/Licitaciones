@@ -768,6 +768,10 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
         logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_licitaciones)}")
 
+        # Calcular puntaje basado en palabras clave
+        palabras_clave = obtener_palabras_clave(worksheet_inicio)
+        df_licitaciones['Puntaje Palabra'] = df_licitaciones.apply(lambda row: calcular_puntaje_palabra(row, palabras_clave), axis=1)        
+
         # Eliminar licitaciones seleccionadas de Hoja 7
         eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
 
@@ -783,6 +787,7 @@ def procesar_licitaciones_y_generar_ranking(
             worksheet_ranking,
             worksheet_ranking_no_relativo,
             worksheet_licitaciones_activas,
+            palabras_clave,
             obtener_palabras_clave(worksheet_inicio),
             obtener_lista_negra(worksheet_lista_negra),
             obtener_rubros_y_productos(worksheet_rubros),
