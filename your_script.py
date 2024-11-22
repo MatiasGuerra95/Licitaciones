@@ -413,16 +413,17 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         productos_presentes = set()
 
         for rubro, productos in rubros_y_productos.items():
-            logging.debug(f"Revisando rubro '{rubro}' y productos asociados: {productos}")
-            if rubro in rubro_column:
-                rubros_presentes.add(rubro)
-                logging.info(f"Rubro encontrado: {rubro} en '{rubro_column}'")
+            rubro_normalizado = eliminar_tildes_y_normalizar(rubro)
+            logging.debug(f"Revisando rubro '{rubro_normalizado}' y productos asociados: {productos}")
+            if rubro_normalizado == rubro_column:
+                rubros_presentes.add(rubro_normalizado)
+                logging.info(f"Rubro encontrado: {rubro_normalizado} en '{rubro_column}'")
 
             # Comparar código de producto con los productos del rubro
             for producto in productos:
                 if producto == codigo_producto:
                     productos_presentes.add(producto)
-                    logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
+                    logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro_normalizado}'")
 
         if not rubros_presentes and not productos_presentes:
             logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni CodigoProductoONU='{codigo_producto}'.")
@@ -715,7 +716,7 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
         logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_licitaciones)}")
-        
+
         # Eliminar licitaciones seleccionadas de Hoja 7
         eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
 
