@@ -400,38 +400,51 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         int: El puntaje calculado.
     """
     try:
-        rubro_column = row['Rubro3'].lower().strip() if pd.notnull(row['Rubro3']) else ''
+        # Normalizar y verificar las entradas
+        rubro_column = eliminar_tildes(row['Rubro3'].lower().strip()) if pd.notnull(row['Rubro3']) else ''
         codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
+        
         puntaje_rubro = 0
 
-        logging.debug(f"Evaluando fila: Rubro='{rubro_column}', CodigoProducto='{codigo_producto}'")
+        logging.info(f"Evaluando licitación {row['CodigoExterno']} - Rubro: '{rubro_column}', Producto: '{codigo_producto}'")
 
-        # Revisar rubros y productos
-        rubros_presentes = set()
-        productos_presentes = set()
+        # Verificar coincidencias de rubros y productos
+        rubro_encontrado = False
+        producto_encontrado = False
 
         for rubro, productos in rubros_y_productos.items():
-            logging.debug(f"Revisando rubro '{rubro}' y productos asociados: {productos}")
-            if rubro in rubro_column:
-                rubros_presentes.add(rubro)
-                logging.info(f"Rubro encontrado: {rubro} en '{rubro_column}'")
+            # Normalizar rubro para comparación
+            rubro_normalizado = eliminar_tildes(rubro.lower().strip())
 
-            # Comparar código de producto con los productos del rubro
-            if codigo_producto in productos:
-                productos_presentes.add(codigo_producto)
-                logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
+            # Verificar si el rubro coincide
+            if rubro_normalizado in rubro_column:
+                rubro_encontrado = True
+                logging.info(f"Rubro encontrado: '{rubro}' en '{rubro_column}'")
+                
+                # Verificar si el producto coincide dentro de este rubro
+                if codigo_producto in productos:
+                    producto_encontrado = True
+                    puntaje_rubro += 10  # Puntaje por coincidencia de producto
+                    logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
+                else:
+                    logging.warning(f"Producto '{codigo_producto}' no encontrado en los productos del rubro '{rubro}'")
 
-        if not rubros_presentes and not productos_presentes:
-            logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni CodigoProductoONU='{codigo_producto}'.")
+        # Puntaje adicional si el rubro coincide, independientemente del producto
+        if rubro_encontrado:
+            puntaje_rubro += 5
+            logging.info(f"Puntaje adicional sumado por coincidencia de rubro '{rubro_column}'")
 
-        puntaje_rubro += len(rubros_presentes) * 5
-        puntaje_rubro += len(productos_presentes) * 10
+        # Mensajes de advertencia si no se encontró coincidencia
+        if not rubro_encontrado:
+            logging.warning(f"No se encontró coincidencia para el rubro '{rubro_column}' en los rubros definidos")
+        if not producto_encontrado:
+            logging.warning(f"No se encontró coincidencia para el producto '{codigo_producto}' en los productos definidos")
 
-        logging.debug(f"Puntaje calculado para rubros: {puntaje_rubro}")
         return puntaje_rubro
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
+
 
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
