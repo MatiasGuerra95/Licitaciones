@@ -710,10 +710,15 @@ def procesar_licitaciones_y_generar_ranking(
         # Concatenar todas las licitaciones
         df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
         logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
+        
+        df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(
+            lambda x: str(x).split('.')[0] if isinstance(x, (float, int, str)) else x
+        )
+        logging.info("Limpieza de la columna 'CodigoProductoONU' completada. Valores transformados para eliminar '.0'.")
+
         logging.info("Formato de los códigos en la columna 'CodigoProductoONU':")
         for codigo in df_licitaciones['CodigoProductoONU'].unique():
             logging.info(f"Valor: {codigo}, Tipo: {type(codigo)}")
-
         # Eliminar tildes y convertir a minúsculas
         df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
         df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
