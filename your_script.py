@@ -154,20 +154,23 @@ def get_worksheet_with_retry(spreadsheet, index):
 
 # -------------------------- Funciones Utilitarias --------------------------
 
-def eliminar_tildes(texto):
+def eliminar_tildes_y_normalizar(texto):
     """
-    Elimina las tildes de una cadena de texto.
+    Elimina las tildes de una cadena de texto y normaliza eliminando espacios adicionales.
 
     Args:
         texto (str): El texto a procesar.
 
     Returns:
-        str: El texto sin tildes.
+        str: El texto sin tildes, sin espacios extra y en minúsculas.
     """
     if texto:
         texto = unicodedata.normalize('NFD', texto)
         texto = ''.join(char for char in texto if unicodedata.category(char) != 'Mn')
+        texto = re.sub(r'\s+', ' ', texto)  # Eliminar espacios adicionales
+        texto = texto.strip().lower()
     return texto
+
 
 def obtener_rango_hoja(worksheet, rango):
     """
@@ -285,7 +288,7 @@ def obtener_rubros_y_productos(worksheet):
 
         # Mapear rubros a productos
         rubros_y_productos = {
-            eliminar_tildes(rubro.lower()): productos.get(key, [])
+            eliminar_tildes_y_normalizar(rubro.lower()): productos.get(key, [])
             for key, rubro in rubros.items()
             if rubro
         }
@@ -317,11 +320,11 @@ def obtener_puntaje_clientes(worksheet):
         for cliente, estado in zip(clientes, estados):
             estado_lower = estado.strip().lower()
             if estado_lower == 'vigente':
-                puntaje_clientes[eliminar_tildes(cliente.lower())] = 10
+                puntaje_clientes[eliminar_tildes_y_normalizar(cliente.lower())] = 10
             elif estado_lower == 'no vigente':
-                puntaje_clientes[eliminar_tildes(cliente.lower())] = 5
+                puntaje_clientes[eliminar_tildes_y_normalizar(cliente.lower())] = 5
             else:
-                puntaje_clientes[eliminar_tildes(cliente.lower())] = 0
+                puntaje_clientes[eliminar_tildes_y_normalizar(cliente.lower())] = 0
         logging.info(f"Puntaje de clientes obtenidos: {puntaje_clientes}")
         return puntaje_clientes
     except Exception as e:
@@ -398,7 +401,8 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         int: El puntaje calculado.
     """
     try:
-        rubro_column = row['Rubro3'].lower().strip() if pd.notnull(row['Rubro3']) else ''
+        # Normalizar los valores para eliminar espacios y tildes adicionales
+        rubro_column = eliminar_tildes_y_normalizar(row['Rubro3']) if pd.notnull(row['Rubro3']) else ''
         codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
         puntaje_rubro = 0
 
@@ -416,7 +420,7 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
 
             # Comparar código de producto con los productos del rubro
             for producto in productos:
-                if producto in codigo_producto:
+                if producto == codigo_producto:
                     productos_presentes.add(producto)
                     logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
 
@@ -431,7 +435,6 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
-
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
     """
@@ -478,7 +481,7 @@ def calcular_puntaje_clientes(nombre_organismo, puntaje_clientes):
     try:
         if not nombre_organismo:
             return 0
-        cliente_normalizado = eliminar_tildes(nombre_organismo.lower().strip())
+        cliente_normalizado = eliminar_tildes_y_normalizar(nombre_organismo.lower().strip())
         puntaje = puntaje_clientes.get(cliente_normalizado, 0)
         logging.info(f"Cliente '{cliente_normalizado}' tiene puntaje {puntaje}")
         return puntaje
@@ -622,7 +625,7 @@ def eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitacio
     """
     try:
         codigos_seleccionados = worksheet_seleccion.col_values(1)[3:]  # Asumiendo que los 'CodigoExterno' están en la primera columna a partir de la fila 4
-        codigos_seleccionados = set([eliminar_tildes(codigo.lower()) for codigo in codigos_seleccionados if codigo])
+        codigos_seleccionados = set([eliminar_tildes_y_normalizar(codigo.lower()) for codigo in codigos_seleccionados if codigo])
         logging.info(f"Total de 'CodigoExterno' seleccionados para eliminar: {len(codigos_seleccionados)}")
 
         licitaciones = worksheet_licitaciones_activas.get_all_values()
@@ -702,7 +705,7 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
         df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
         df_licitaciones['Rubro3'] = df_licitaciones['Rubro3'].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
-        df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: eliminar_tildes_y_normalizar(str(x)) if pd.notnull(x) else x)
+        df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: str(x).strip().lstrip("'") if pd.notnull(x) else x)
         
         # Filtrar por fechas de publicación y cierre
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
