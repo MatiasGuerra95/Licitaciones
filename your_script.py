@@ -75,7 +75,7 @@ PRODUCTOS_RANGES = {
 # Columnas Importantes
 COLUMNAS_IMPORTANTES = [
     'CodigoExterno', 'Nombre', 'CodigoEstado', 'FechaCreacion', 'FechaCierre',
-    'Descripcion', 'NombreOrganismo', 'Rubro3', 'Nombre producto genrico',
+    'Descripcion', 'NombreOrganismo', 'Rubro3', 'Nombre producto genrico', 'CodigoProductoONU',
     'Tipo', 'CantidadReclamos', 'TiempoDuracionContrato', 'Link'
 ]
 
@@ -403,7 +403,7 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
     """
     try:
         rubro_column = eliminar_tildes(row['Rubro3'].lower()) if pd.notnull(row['Rubro3']) else ''
-        productos_column = eliminar_tildes(row['Nombre producto genrico'].lower()) if pd.notnull(row['Nombre producto genrico']) else ''
+        productos_column = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
         puntaje_rubro = 0
         rubros_presentes = set()
         productos_presentes = set()
@@ -469,10 +469,16 @@ def calcular_puntaje_clientes(nombre_organismo, puntaje_clientes):
         int: El puntaje asignado al cliente.
     """
     try:
-        return puntaje_clientes.get(eliminar_tildes(nombre_organismo.lower()), 0)
+        if not nombre_organismo:
+            return 0
+        cliente_normalizado = eliminar_tildes(nombre_organismo.lower().strip())
+        puntaje = puntaje_clientes.get(cliente_normalizado, 0)
+        logging.info(f"Cliente '{cliente_normalizado}' tiene puntaje {puntaje}")
+        return puntaje
     except Exception as e:
         logging.error(f"Error al calcular puntaje por clientes: {e}", exc_info=True)
         return 0
+
 
 # -------------------------- Actualización de Google Sheets con Retry --------------------------
 
@@ -955,7 +961,8 @@ def generar_ranking(
             df_final[col] = df_final[col].astype(float).round(2)
 
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
-        data_final = [[str(x) if isinstance(x, str) else x for x in row] for row in data_final]
+        data_final = [[str(x).replace("'", "") if isinstance(x, str) else x for x in row] for row in data_final]
+
 
         # Preservar el valor de la celda A1 en Hoja 2
         nombre_a1 = worksheet_ranking.acell('A1').value if worksheet_ranking.acell('A1').value else ""
