@@ -271,12 +271,13 @@ def obtener_rubros_y_productos(worksheet):
         }
 
         # Productos
-        valores_productos = obtener_rango_disjunto(worksheet, sum(PRODUCTOS_RANGES.values(), []))
+        rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
+        valores_productos = obtener_rango_disjunto(worksheet, rangos_productos)
         productos = {}
         index = 0
         for key in PRODUCTOS_RANGES.keys():
             productos[key] = [
-                valores_productos[index + i][0].strip()  # Mantener como string
+                str(valores_productos[index + i][0]).strip()  # Mantener como string
                 for i in range(len(PRODUCTOS_RANGES[key]))
                 if valores_productos[index + i] and valores_productos[index + i][0].strip()
             ]
@@ -284,7 +285,7 @@ def obtener_rubros_y_productos(worksheet):
 
         # Mapear rubros a productos
         rubros_y_productos = {
-            rubro.lower(): productos.get(key, [])
+            eliminar_tildes(rubro.lower()): productos.get(key, [])
             for key, rubro in rubros.items()
             if rubro
         }
@@ -420,6 +421,9 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
                 productos_presentes.add(codigo_producto)
                 logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
 
+        if not rubros_presentes and not productos_presentes:
+            logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni CodigoProductoONU='{codigo_producto}'.")
+
         puntaje_rubro += len(rubros_presentes) * 5
         puntaje_rubro += len(productos_presentes) * 10
 
@@ -428,8 +432,6 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
-
-
 
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
