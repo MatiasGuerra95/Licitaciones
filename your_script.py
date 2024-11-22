@@ -168,6 +168,7 @@ def eliminar_tildes_y_normalizar(texto):
         texto = unicodedata.normalize('NFD', texto)
         texto = ''.join(char for char in texto if unicodedata.category(char) != 'Mn')
         texto = re.sub(r'\s+', ' ', texto)  # Eliminar espacios adicionales
+        texto = re.sub(r'\b(\w+)\b(?=.*\b\1\b)', '', texto)  # Eliminar palabras repetidas
         texto = texto.strip().lower()
     return texto
 
@@ -357,38 +358,50 @@ def obtener_ponderaciones(worksheet_inicio):
 
 # -------------------------- Funciones de Calculo de Puntajes --------------------------
 
-def calcular_puntaje_palabra(nombre, descripcion, palabras_clave_set, lista_negra):
-    """
-    Calcula el puntaje basado en palabras clave y aplica penalizaciones según la lista negra.
-
+def calcular_puntaje_rubro(row, rubros_y_productos):    
+    """    
     Args:
-        nombre (str): Nombre de la licitación.
-        descripcion (str): Descripción de la licitación.
-        palabras_clave_set (set): Conjunto de palabras clave.
-        lista_negra (set): Conjunto de frases de la lista negra.
+        row (pd.Series): Una fila del DataFrame representando una licitación.
+        rubros_y_productos (dict): Diccionario mapeando rubros a productos.
 
     Returns:
         int: El puntaje calculado.
     """
     try:
-        texto = f"{nombre.lower()} {descripcion.lower()}"
-        
-        # Aplicar penalización específica
-        if "consumo humano" in texto:
-            logging.info(f"Penalización aplicada: frase 'consumo humano' encontrada en '{texto}'")
-            return -10
-        
-        # Sumar puntos por palabras clave
-        palabras_texto = set(re.findall(r'\b\w+\b', texto))
-        palabras_encontradas = palabras_clave_set.intersection(palabras_texto)
-        puntaje_palabra = len(palabras_encontradas) * 10
-        
-        for palabra in palabras_encontradas:
-            logging.info(f"Puntos sumados por palabra clave: '{palabra}' en '{texto}'")
-        
-        return puntaje_palabra
+        # Normalizar los valores para eliminar espacios y tildes adicionales
+        rubro_column = eliminar_tildes_y_normalizar(row['Rubro3']) if pd.notnull(row['Rubro3']) else ''
+        codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
+        puntaje_rubro = 0
+
+        logging.debug(f"Evaluando fila: Rubro='{rubro_column}', CodigoProducto='{codigo_producto}'")
+
+        # Revisar rubros y productos
+        rubros_presentes = set()
+        productos_presentes = set()
+
+        for rubro, productos in rubros_y_productos.items():
+            rubro_normalizado = eliminar_tildes_y_normalizar(rubro)
+            logging.debug(f"Revisando rubro '{rubro_normalizado}' y productos asociados: {productos}")
+            if rubro_normalizado in rubro_column:
+                rubros_presentes.add(rubro_normalizado)
+                logging.info(f"Rubro encontrado: {rubro_normalizado} en '{rubro_column}'")
+
+            # Comparar código de producto con los productos del rubro
+            for producto in productos:
+                if producto == codigo_producto:
+                    productos_presentes.add(producto)
+                    logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro_normalizado}'")
+
+        if not rubros_presentes and not productos_presentes:
+            logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni CodigoProductoONU='{codigo_producto}'.")
+
+        puntaje_rubro += len(rubros_presentes) * 5
+        puntaje_rubro += len(productos_presentes) * 10
+
+        logging.debug(f"Puntaje calculado para rubros: {puntaje_rubro}")
+        return puntaje_rubro
     except Exception as e:
-        logging.error(f"Error al calcular puntaje por palabra: {e}", exc_info=True)
+        logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
 
 def calcular_puntaje_rubro(row, rubros_y_productos):    
@@ -656,7 +669,7 @@ def eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitacio
     except Exception as e:
         logging.error(f"Error al eliminar licitaciones seleccionadas: {e}", exc_info=True)
         raise
-    
+
 @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(5), retry=retry_if_exception_type(APIError))
 def obtener_rango_hoja(worksheet, rango):
     try:
