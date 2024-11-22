@@ -432,51 +432,47 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
 
-def calcular_puntaje_rubro(row, rubros_y_productos):    
-    """    
-    Args:
-        row (pd.Series): Una fila del DataFrame representando una licitación.
-        rubros_y_productos (dict): Diccionario mapeando rubros a productos.
-
-    Returns:
-        int: El puntaje calculado.
+def calcular_puntaje_rubro(row, rubros_y_productos):
+    """
+    Calculates the score based on rubros and products.
     """
     try:
-        # Normalizar los valores para eliminar espacios y tildes adicionales
         rubro_column = eliminar_tildes_y_normalizar(row['Rubro3']) if pd.notnull(row['Rubro3']) else ''
         codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
         puntaje_rubro = 0
 
-        logging.debug(f"Evaluando fila: Rubro='{rubro_column}', CodigoProducto='{codigo_producto}'")
+        logging.debug(f"Evaluating row: Rubro='{rubro_column}', CodigoProducto='{codigo_producto}'")
 
-        # Revisar rubros y productos
         rubros_presentes = set()
         productos_presentes = set()
 
+        # Log the rubros and productos we are checking against
         for rubro, productos in rubros_y_productos.items():
             rubro_normalizado = eliminar_tildes_y_normalizar(rubro)
-            logging.debug(f"Revisando rubro '{rubro_normalizado}' y productos asociados: {productos}")
+            logging.debug(f"Checking rubro '{rubro_normalizado}' with associated products: {productos}")
+
             if rubro_normalizado == rubro_column:
                 rubros_presentes.add(rubro_normalizado)
-                logging.info(f"Rubro encontrado: {rubro_normalizado} en '{rubro_column}'")
+                logging.info(f"Rubro found: {rubro_normalizado} in '{rubro_column}'")
 
-            # Comparar código de producto con los productos del rubro
             for producto in productos:
                 if producto == codigo_producto:
                     productos_presentes.add(producto)
-                    logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro_normalizado}'")
+                    logging.info(f"Producto found: '{codigo_producto}' associated with rubro '{rubro_normalizado}'")
 
         if not rubros_presentes and not productos_presentes:
-            logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni CodigoProductoONU='{codigo_producto}'.")
+            logging.warning(f"No matches found for Rubro3='{rubro_column}' or CodigoProductoONU='{codigo_producto}'.")
 
-        puntaje_rubro += len(rubros_presentes) * 5
-        puntaje_rubro += len(productos_presentes) * 10
+        puntaje_rubro += len(rubros_presentes) * 5  # Points for rubro
+        puntaje_rubro += len(productos_presentes) * 10  # Points for product
 
-        logging.debug(f"Puntaje calculado para rubros: {puntaje_rubro}")
+        logging.debug(f"Calculated rubro score: {puntaje_rubro}")
         return puntaje_rubro
     except Exception as e:
-        logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
+        logging.error(f"Error calculating rubro score: {e}", exc_info=True)
         return 0
+
+
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
     """
