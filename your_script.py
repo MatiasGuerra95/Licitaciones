@@ -156,30 +156,22 @@ def get_worksheet_with_retry(spreadsheet, index):
 
 def eliminar_tildes(texto):
     """
-    Elimina las tildes de una cadena de texto, convierte a minúsculas y elimina espacios adicionales.
+    Elimina las tildes de una cadena de texto.
 
     Args:
         texto (str): El texto a procesar.
 
     Returns:
-        str: El texto sin tildes, en minúsculas y sin espacios adicionales.
+        str: El texto sin tildes.
     """
-    if texto and isinstance(texto, str):
+    if texto:
         texto = unicodedata.normalize('NFD', texto)
         texto = ''.join(char for char in texto if unicodedata.category(char) != 'Mn')
-        texto = texto.lower().strip()
     return texto
 
 def obtener_rango_hoja(worksheet, rango):
     """
     Recupera valores de un rango especificado en una hoja. Soporta rangos simples.
-
-    Args:
-        worksheet (gspread.Worksheet): La hoja de cálculo.
-        rango (str): El rango en notación A1.
-
-    Returns:
-        list: Lista de valores obtenidos.
     """
     try:
         if ',' in rango:  # Si el rango es disjunto (contiene ',')
@@ -217,6 +209,7 @@ def obtener_rango_disjunto(worksheet, rangos):
             logging.error(f"Error al obtener valores del rango {rango}: {e}", exc_info=True)
             raise
     return valores
+
 
 def obtener_palabras_clave(worksheet):
     """
@@ -259,30 +252,9 @@ def obtener_lista_negra(worksheet):
         logging.error(f"Error al obtener la lista negra: {e}", exc_info=True)
         raise
 
-def validar_rubros_y_productos(rubros_y_productos):
-    """
-    Valida que el mapeo de rubros y productos sea correcto.
-
-    Args:
-        rubros_y_productos (dict): Diccionario mapeando rubros a productos.
-
-    Returns:
-        bool: True si es válido, False en caso contrario.
-    """
-    for rubro, productos in rubros_y_productos.items():
-        if not isinstance(productos, list):
-            logging.error(f"Los productos asociados al rubro '{rubro}' no son una lista.")
-            return False
-        for producto in productos:
-            if not isinstance(producto, str):
-                logging.error(f"El producto '{producto}' en el rubro '{rubro}' no es una cadena de texto.")
-                return False
-    logging.info("Validación de rubros y productos exitosa.")
-    return True
-
 def obtener_rubros_y_productos(worksheet):
     """
-    Recupera rubros y sus correspondientes productos desde la hoja.
+    Recupera rubros y sus correspondientes productos desde la hoja de forma eficiente.
 
     Args:
         worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
@@ -291,49 +263,40 @@ def obtener_rubros_y_productos(worksheet):
         dict: Un diccionario mapeando rubros a sus listas de productos.
     """
     try:
-        # Iniciar la carga de rubros y productos
-        logging.info("Iniciando carga de rubros y productos.")
-
-        # Obtener los valores de los rubros
+        # Rubros
         valores_rubros = obtener_rango_disjunto(worksheet, list(RUBROS_RANGES.values()))
-        logging.info(f"Rubros cargados: {valores_rubros}")
+        rubros = {
+            key: valores[0][0].strip() if valores and valores[0] else None
+            for key, valores in zip(RUBROS_RANGES.keys(), [[v] for v in valores_rubros])
+        }
 
-        # Obtener los valores de los productos
+        # Productos
         rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
         valores_productos = obtener_rango_disjunto(worksheet, rangos_productos)
-        logging.info(f"Productos cargados: {valores_productos}")
+        productos = {}
+        index = 0
+        for key in PRODUCTOS_RANGES.keys():
+            productos[key] = [
+                valores_productos[index + i][0].strip()  # Mantener como string
+                for i in range(len(PRODUCTOS_RANGES[key]))
+                if valores_productos[index + i] and valores_productos[index + i][0].strip()
+            ]
+            index += len(PRODUCTOS_RANGES[key])
 
-        # Construir el mapeo de rubros a productos
-        rubros_y_productos = {}
-        for i, rubro_key in enumerate(RUBROS_RANGES.keys()):
-            rubro = valores_rubros[i][0] if i < len(valores_rubros) else None
-            if rubro:
-                rubro_limpio = eliminar_tildes(rubro)
-                # Extraer los productos correspondientes al rubro actual
-                start_index = i * 10  # Cada rubro tiene 10 productos
-                end_index = start_index + 10
-                productos = valores_productos[start_index:end_index]
-                # Filtrar productos no vacíos y limpiarlos
-                productos_limpios = [
-                    eliminar_tildes(producto[0].strip())
-                    for producto in productos
-                    if producto and producto[0].strip()
-                ]
-                rubros_y_productos[rubro_limpio] = productos_limpios
-                logging.info(f"Rubro: '{rubro_limpio}' -> Productos: {productos_limpios}")
-            else:
-                logging.warning(f"No se encontró rubro para la clave '{rubro_key}'.")
+        # Mapear rubros a productos
+        rubros_y_productos = {
+            eliminar_tildes(rubro.lower()): productos.get(key, [])
+            for key, rubro in rubros.items()
+            if rubro
+        }
 
-        # Validar el mapeo
-        if not validar_rubros_y_productos(rubros_y_productos):
-            logging.critical("El mapeo de rubros y productos es inválido.")
-            raise ValueError("Mapa de rubros y productos inválido.")
-
-        logging.debug(f"Diccionario rubros_y_productos: {json.dumps(rubros_y_productos, indent=2)}")
+        logging.info(f"Rubros y productos obtenidos: {rubros_y_productos}")
         return rubros_y_productos
+
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
+
 
 def obtener_puntaje_clientes(worksheet):
     """
@@ -353,13 +316,12 @@ def obtener_puntaje_clientes(worksheet):
         puntaje_clientes = {}
         for cliente, estado in zip(clientes, estados):
             estado_lower = estado.strip().lower()
-            cliente_normalizado = eliminar_tildes(cliente.lower().strip())
             if estado_lower == 'vigente':
-                puntaje_clientes[cliente_normalizado] = 10
+                puntaje_clientes[eliminar_tildes(cliente.lower())] = 10
             elif estado_lower == 'no vigente':
-                puntaje_clientes[cliente_normalizado] = 5
+                puntaje_clientes[eliminar_tildes(cliente.lower())] = 5
             else:
-                puntaje_clientes[cliente_normalizado] = 0
+                puntaje_clientes[eliminar_tildes(cliente.lower())] = 0
         logging.info(f"Puntaje de clientes obtenidos: {puntaje_clientes}")
         return puntaje_clientes
     except Exception as e:
@@ -407,32 +369,27 @@ def calcular_puntaje_palabra(nombre, descripcion, palabras_clave_set, lista_negr
     """
     try:
         texto = f"{nombre.lower()} {descripcion.lower()}"
-
+        
         # Aplicar penalización específica
         if "consumo humano" in texto:
             logging.info(f"Penalización aplicada: frase 'consumo humano' encontrada en '{texto}'")
             return -10
-
+        
         # Sumar puntos por palabras clave
         palabras_texto = set(re.findall(r'\b\w+\b', texto))
         palabras_encontradas = palabras_clave_set.intersection(palabras_texto)
         puntaje_palabra = len(palabras_encontradas) * 10
-
+        
         for palabra in palabras_encontradas:
             logging.info(f"Puntos sumados por palabra clave: '{palabra}' en '{texto}'")
-
+        
         return puntaje_palabra
     except Exception as e:
         logging.error(f"Error al calcular puntaje por palabra: {e}", exc_info=True)
         return 0
 
-def calcular_puntaje_rubro(row, rubros_y_productos):
-    """
-    Calcula el puntaje basado en rubros y productos.
-
-    Asigna +5 si se encuentra el rubro.
-    Asigna +10 adicional si se encuentra el producto asociado al rubro.
-
+def calcular_puntaje_rubro(row, rubros_y_productos):    
+    """    
     Args:
         row (pd.Series): Una fila del DataFrame representando una licitación.
         rubros_y_productos (dict): Diccionario mapeando rubros a productos.
@@ -441,39 +398,39 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         int: El puntaje calculado.
     """
     try:
-        rubro_column = eliminar_tildes(row['Rubro3']) if pd.notnull(row['Rubro3']) else ''
-        codigo_producto = eliminar_tildes(str(row['CodigoProductoONU']).split('.')[0]) if pd.notnull(row['CodigoProductoONU']) else ''
-
-        # Verificar que el código de producto solo contenga alfanuméricos
-        if not re.match(r'^[a-z0-9]+$', codigo_producto):
-            logging.warning(f"El código de producto '{codigo_producto}' tiene un formato inválido.")
-            return 0
-
-        logging.info(f"Procesando licitación {row['CodigoExterno']}: Rubro '{rubro_column}', Producto '{codigo_producto}'.")
-
+        rubro_column = row['Rubro3'].lower().strip() if pd.notnull(row['Rubro3']) else ''
+        codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
         puntaje_rubro = 0
 
-        if rubro_column in rubros_y_productos:
-            # Asignar +5 por encontrar el rubro
-            puntaje_rubro += 5
-            logging.info(f"Puntaje asignado: +5 por rubro '{rubro_column}' encontrado.")
+        logging.debug(f"Evaluando fila: Rubro='{rubro_column}', CodigoProducto='{codigo_producto}'")
 
-            productos_asociados = rubros_y_productos[rubro_column]
-            logging.debug(f"Productos asociados al rubro '{rubro_column}': {productos_asociados}")
+        # Revisar rubros y productos
+        rubros_presentes = set()
+        productos_presentes = set()
 
-            if codigo_producto in productos_asociados:
-                # Asignar +10 adicional por encontrar el producto asociado
-                puntaje_rubro += 10
-                logging.info(f"Puntaje asignado: +10 por producto '{codigo_producto}' coincide con rubro '{rubro_column}'.")
-            else:
-                logging.warning(f"Producto '{codigo_producto}' no está en los productos del rubro '{rubro_column}'.")
-        else:
-            logging.warning(f"Rubro '{rubro_column}' no coincide con ninguno de los rubros cargados.")
+        for rubro, productos in rubros_y_productos.items():
+            logging.debug(f"Revisando rubro '{rubro}' y productos asociados: {productos}")
+            if rubro in rubro_column:
+                rubros_presentes.add(rubro)
+                logging.info(f"Rubro encontrado: {rubro} en '{rubro_column}'")
 
+            # Comparar código de producto con los productos del rubro
+            if codigo_producto in productos:
+                productos_presentes.add(codigo_producto)
+                logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
+
+        if not rubros_presentes and not productos_presentes:
+            logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni CodigoProductoONU='{codigo_producto}'.")
+
+        puntaje_rubro += len(rubros_presentes) * 5
+        puntaje_rubro += len(productos_presentes) * 10
+
+        logging.debug(f"Puntaje calculado para rubros: {puntaje_rubro}")
         return puntaje_rubro
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
+
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
     """
@@ -527,6 +484,7 @@ def calcular_puntaje_clientes(nombre_organismo, puntaje_clientes):
     except Exception as e:
         logging.error(f"Error al calcular puntaje por clientes: {e}", exc_info=True)
         return 0
+
 
 # -------------------------- Actualización de Google Sheets con Retry --------------------------
 
@@ -760,7 +718,7 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
         
         df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(
-            lambda x: eliminar_tildes(str(x).split('.')[0]) if isinstance(x, (float, int, str)) else ''
+            lambda x: str(x).split('.')[0] if isinstance(x, (float, int, str)) else x
         )
         logging.info("Limpieza de la columna 'CodigoProductoONU' completada. Valores transformados para eliminar '.0'.")
 
@@ -768,8 +726,8 @@ def procesar_licitaciones_y_generar_ranking(
         for codigo in df_licitaciones['CodigoProductoONU'].unique():
             logging.info(f"Valor: {codigo}, Tipo: {type(codigo)}")
         # Eliminar tildes y convertir a minúsculas
-        df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes(x) if isinstance(x, str) else x)
-        df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes(x) if isinstance(x, str) else x)
+        df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
+        df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
 
         # Filtrar licitaciones con 'CodigoEstado' = 5
         if 'CodigoEstado' in df_licitaciones.columns:
@@ -897,8 +855,8 @@ def generar_ranking(
             'Nombre': 'first',
             'NombreOrganismo': 'first',
             'Link': 'first',
-            'Rubro3': 'first',
-            'CodigoProductoONU': 'first',
+            'Rubro3': lambda x: ' '.join(x),
+            'CodigoProductoONU': lambda x: ' '.join(x),
             'Tipo': 'first',
             'CantidadReclamos': 'first',
             'Descripcion': 'first',
@@ -917,9 +875,14 @@ def generar_ranking(
 
         df_licitaciones_agrupado['Puntaje Rubro'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_rubro(row, rubros_y_productos),
-            axis=1
+        axis=1
         )
-        logging.info("Puntaje por rubros calculado.")
+        # Revisar puntajes inesperados
+        for index, row in df_licitaciones_agrupado.iterrows():
+            if row['Puntaje Rubro'] == 0:
+                logging.warning(f"Licitación {row['CodigoExterno']} tiene puntaje 0 en rubros. Verifica: "
+                        f"Rubro3: {row['Rubro3']}, Productos: {row['CodigoProductoONU']}")
+
 
         df_licitaciones_agrupado['Puntaje Monto'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_monto(row['Tipo'], row['TiempoDuracionContrato']),
@@ -954,12 +917,13 @@ def generar_ranking(
         data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
         data_no_relativos = [[str(x).replace("'", "") for x in row] for row in data_no_relativos]
 
+
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
 
         # Seleccionar Top 100 licitaciones
         df_top_100 = df_licitaciones_agrupado.sort_values(
-            by=['Puntaje Total'], 
+            by=['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes'], 
             ascending=False
         ).head(100)
         logging.info("Top 100 licitaciones seleccionadas.")
@@ -1012,6 +976,7 @@ def generar_ranking(
 
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
         data_final = [[str(x).replace("'", "") if isinstance(x, str) else x for x in row] for row in data_final]
+
 
         # Preservar el valor de la celda A1 en Hoja 2
         nombre_a1 = worksheet_ranking.acell('A1').value if worksheet_ranking.acell('A1').value else ""
