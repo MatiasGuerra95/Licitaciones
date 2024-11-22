@@ -856,7 +856,7 @@ def generar_ranking(
             'NombreOrganismo': 'first',
             'Link': 'first',
             'Rubro3': lambda x: ' '.join(x),
-            'Nombre producto genrico': lambda x: ' '.join(x),
+            'CodigoProductoONU': lambda x: ' '.join(x),
             'Tipo': 'first',
             'CantidadReclamos': 'first',
             'Descripcion': 'first',
@@ -881,7 +881,7 @@ def generar_ranking(
         for index, row in df_licitaciones_agrupado.iterrows():
             if row['Puntaje Rubro'] == 0:
                 logging.warning(f"Licitación {row['CodigoExterno']} tiene puntaje 0 en rubros. Verifica: "
-                        f"Rubro3: {row['Rubro3']}, Productos: {row['Nombre producto genrico']}")
+                        f"Rubro3: {row['Rubro3']}, Productos: {row['CodigoProductoONU']}")
 
 
         df_licitaciones_agrupado['Puntaje Monto'] = df_licitaciones_agrupado.apply(
