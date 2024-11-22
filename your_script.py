@@ -415,9 +415,10 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
                 logging.info(f"Rubro encontrado: {rubro} en '{rubro_column}'")
 
             # Comparar código de producto con los productos del rubro
-            if codigo_producto in productos:
-                productos_presentes.add(codigo_producto)
-                logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
+            for producto in productos:
+                if producto in codigo_producto:
+                    productos_presentes.add(producto)
+                    logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
 
         if not rubros_presentes and not productos_presentes:
             logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni CodigoProductoONU='{codigo_producto}'.")
@@ -687,101 +688,26 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Fecha mínima de publicación: {fecha_min_publicacion}")
         logging.info(f"Fecha mínima de cierre: {fecha_min_cierre}")
 
-        # Determinar mes y año actual y anterior
-        now = datetime.now()
-        mes_actual = now.month
-        año_actual = now.year
-
-        if mes_actual == 1:
-            mes_anterior = 12
-            año_anterior = año_actual - 1
-        else:
-            mes_anterior = mes_actual - 1
-            año_anterior = año_actual
-
-        # Construir URLs
-        url_mes_actual = f"{BASE_URL}{año_actual}-{mes_actual:02d}.zip"
-        url_mes_anterior = f"{BASE_URL}{año_anterior}-{mes_anterior:02d}.zip"
-
-        logging.info(f"URL del mes actual: {url_mes_actual}")
-        logging.info(f"URL del mes anterior: {url_mes_anterior}")
-
-        # Descargar y procesar licitaciones
-        df_mes_actual = procesar_licitaciones(url_mes_actual)
-        df_mes_anterior = procesar_licitaciones(url_mes_anterior)
-
-        # Integrar licitaciones de SICEP
+        # Descargar y procesar licitaciones (incluyendo normalización para evitar duplicados)
+        df_mes_actual = procesar_licitaciones(f"{BASE_URL}{datetime.now().year}-{datetime.now().month:02d}.zip")
+        df_mes_anterior = procesar_licitaciones(f"{BASE_URL}{datetime.now().year}-{datetime.now().month - 1:02d}.zip")
         df_sicep = integrar_licitaciones_sicep(worksheet_sicep)
 
         # Concatenar todas las licitaciones
         df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
-        logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
+        df_licitaciones.drop_duplicates(inplace=True)
+        logging.info(f"Total de licitaciones después de concatenar y eliminar duplicados: {len(df_licitaciones)}")
+
+        # Normalizar y limpiar las columnas antes de procesar
+        df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
+        df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
+        df_licitaciones['Rubro3'] = df_licitaciones['Rubro3'].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
+        df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: eliminar_tildes_y_normalizar(str(x)) if pd.notnull(x) else x)
         
-        df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(
-            lambda x: str(x).split('.')[0] if isinstance(x, (float, int, str)) else x
-        )
-        logging.info("Limpieza de la columna 'CodigoProductoONU' completada. Valores transformados para eliminar '.0'.")
-
-        logging.info("Formato de los códigos en la columna 'CodigoProductoONU':")
-        for codigo in df_licitaciones['CodigoProductoONU'].unique():
-            logging.info(f"Valor: {codigo}, Tipo: {type(codigo)}")
-        # Eliminar tildes y convertir a minúsculas
-        df_licitaciones['Nombre'] = df_licitaciones['Nombre'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
-        df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes(x.lower()) if isinstance(x, str) else x)
-
-        # Filtrar licitaciones con 'CodigoEstado' = 5
-        if 'CodigoEstado' in df_licitaciones.columns:
-            df_licitaciones = df_licitaciones[df_licitaciones['CodigoEstado'] == 5]
-            logging.info(f"Filtradas licitaciones con 'CodigoEstado' = 5. Total: {len(df_licitaciones)}")
-        else:
-            df_licitaciones = pd.DataFrame()
-            logging.warning("'CodigoEstado' no está en las columnas. Se creó un DataFrame vacío.")
-
-        # Seleccionar columnas importantes
-        df_licitaciones = df_licitaciones[df_licitaciones.columns.intersection(COLUMNAS_IMPORTANTES)]
-
-        # Añadir columnas faltantes con None
-        for columna in COLUMNAS_IMPORTANTES:
-            if columna not in df_licitaciones.columns:
-                df_licitaciones[columna] = None
-
-        logging.info(f"Seleccionadas columnas importantes. Total de licitaciones: {len(df_licitaciones)}")
-
-        # Convertir columnas de fechas
-        for col in ['FechaCreacion', 'FechaCierre']:
-            if col in df_licitaciones.columns:
-                df_licitaciones[col] = pd.to_datetime(df_licitaciones[col], errors='coerce')
-
-        # Eliminar filas con fechas inválidas
-        df_licitaciones.dropna(subset=['FechaCreacion', 'FechaCierre'], inplace=True)
-        logging.info("Fechas convertidas y filas con fechas inválidas eliminadas.")
-
-        # Aplicar filtros mínimos de fechas
+        # Filtrar por fechas de publicación y cierre
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
-        logging.info(f"Fechas después del filtro de publicación: {df_licitaciones['FechaCreacion'].unique()}")
-
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
-        logging.info(f"Licitaciones filtradas: {len(df_licitaciones)} después de aplicar los filtros de publicación y cierre.")
-
-        # Subir licitaciones filtradas a Hoja 7
-        if not df_licitaciones.empty:
-            data_to_upload = [df_licitaciones.columns.values.tolist()] + df_licitaciones.values.tolist()
-            data_to_upload = [[str(x) for x in row] for row in data_to_upload]
-            try:
-                worksheet_licitaciones_activas.clear()
-                logging.info("Contenido de la Hoja 7 borrado exitosamente.")
-
-                actualizar_hoja(worksheet_licitaciones_activas, 'A1', data_to_upload)
-                logging.info("Datos actualizados en Google Sheets exitosamente en la Hoja 7.")
-            except APIError as e:
-                logging.error(f"APIError al actualizar la Hoja 7: {e}", exc_info=True)
-                raise
-            except Exception as e:
-                logging.error(f"Error al actualizar la Hoja 7: {e}", exc_info=True)
-                raise
-        else:
-            logging.warning("No se procesaron licitaciones para subir a Google Sheets.")
-
+        logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_licitaciones)}")
         # Eliminar licitaciones seleccionadas de Hoja 7
         eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
 
@@ -797,11 +723,11 @@ def procesar_licitaciones_y_generar_ranking(
             worksheet_ranking,
             worksheet_ranking_no_relativo,
             worksheet_licitaciones_activas,
-            palabras_clave_set,
-            lista_negra,
-            rubros_y_productos,
-            puntaje_clientes,
-            ponderaciones
+            obtener_palabras_clave(worksheet_inicio),
+            obtener_lista_negra(worksheet_lista_negra),
+            obtener_rubros_y_productos(worksheet_rubros),
+            obtener_puntaje_clientes(worksheet_clientes),
+            obtener_ponderaciones(worksheet_inicio)
         )
 
     except Exception as e:
