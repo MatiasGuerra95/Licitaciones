@@ -48,7 +48,7 @@ SALUD_EXCLUIR = [
 ]
 
 # Rango de Lista Negra (Blacklist)
-LISTA_NEGRA_RANGE = 'B2:B'
+LISTA_NEGRA_RANGE = 'B2'
 
 # Rango de Fechas
 FECHAS_RANGE = 'C6:C7'
@@ -67,9 +67,9 @@ RUBROS_RANGES = {
     'rubro3': 'I13'
 }
 PRODUCTOS_RANGES = {
-    'rubro1': ['C14', 'C15', 'C16', 'C17', 'C18', 'C19', 'C20', 'C21', 'C22', 'C23'],
-    'rubro2': ['F14', 'F15', 'F16', 'F17', 'F18', 'F19', 'F20', 'F21', 'F22', 'F23'],
-    'rubro3': ['I14', 'I15', 'I16', 'I17', 'I18', 'I19', 'I20', 'I21', 'I22', 'I23']
+    'rubro1': ['D14', 'D15', 'D16', 'D17', 'D18', 'D19', 'D20', 'D21', 'D22', 'D23'],
+    'rubro2': ['G14', 'G15', 'G16', 'G17', 'G18', 'G19', 'G20', 'G21', 'G22', 'G23'],
+    'rubro3': ['J14', 'J15', 'J16', 'J17', 'J18', 'J19', 'J20', 'J21', 'J22', 'J23']
 }
 
 # Columnas Importantes
