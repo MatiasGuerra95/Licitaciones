@@ -253,21 +253,55 @@ def obtener_lista_negra(worksheet):
         raise
 
 def obtener_rubros_y_productos(worksheet):
+    """
+    Recupera rubros y sus correspondientes productos desde la hoja.
+
+    Args:
+        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
+
+    Returns:
+        dict: Un diccionario mapeando rubros a sus listas de productos.
+    """
     try:
-        # Debugging adicional en los valores cargados
+        # Iniciar la carga de rubros y productos
         logging.info("Iniciando carga de rubros y productos.")
-        
+
+        # Obtener los valores de los rubros
         valores_rubros = obtener_rango_disjunto(worksheet, list(RUBROS_RANGES.values()))
         logging.info(f"Rubros cargados: {valores_rubros}")
-        
+
+        # Obtener los valores de los productos
         rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
         valores_productos = obtener_rango_disjunto(worksheet, rangos_productos)
         logging.info(f"Productos cargados: {valores_productos}")
 
-        # Resto del código sin cambios...
+        # Construir el mapeo de rubros a productos
+        rubros_y_productos = {}
+        for i, rubro_key in enumerate(RUBROS_RANGES.keys()):
+            rubro = valores_rubros[i][0] if i < len(valores_rubros) else None
+            if rubro:
+                rubro_limpio = eliminar_tildes(rubro.lower().strip())
+                # Extraer los productos correspondientes al rubro actual
+                start_index = i * 10  # Cada rubro tiene 10 productos
+                end_index = start_index + 10
+                productos = valores_productos[start_index:end_index]
+                # Filtrar productos no vacíos y limpiarlos
+                productos_limpios = [
+                    eliminar_tildes(producto[0].lower().strip())
+                    for producto in productos
+                    if producto and producto[0].strip()
+                ]
+                rubros_y_productos[rubro_limpio] = productos_limpios
+                logging.info(f"Rubro: '{rubro_limpio}' -> Productos: {productos_limpios}")
+            else:
+                logging.warning(f"No se encontró rubro para la clave '{rubro_key}'.")
+        
+        logging.info(f"Rubros y productos mapeados: {rubros_y_productos}")
+        return rubros_y_productos
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
+
 
 
 def obtener_puntaje_clientes(worksheet):
@@ -361,29 +395,39 @@ def calcular_puntaje_palabra(nombre, descripcion, palabras_clave_set, lista_negr
         return 0
 
 def calcular_puntaje_rubro(row, rubros_y_productos):
+    """
+    Calcula el puntaje basado en rubros y productos.
+
+    Args:
+        row (pd.Series): Una fila del DataFrame representando una licitación.
+        rubros_y_productos (dict): Diccionario mapeando rubros a productos.
+
+    Returns:
+        int: El puntaje calculado.
+    """
     try:
         rubro_column = eliminar_tildes(row['Rubro3'].lower().strip()) if pd.notnull(row['Rubro3']) else ''
-        codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
+        codigo_producto = eliminar_tildes(str(row['CodigoProductoONU']).lower().strip()) if pd.notnull(row['CodigoProductoONU']) else ''
 
         logging.info(f"Procesando licitación {row['CodigoExterno']}: Rubro '{rubro_column}', Producto '{codigo_producto}'.")
 
         puntaje_rubro = 0
-        for rubro, productos in rubros_y_productos.items():
-            logging.debug(f"Comparando rubro '{rubro}' con '{rubro_column}'.")
-            if rubro in rubro_column:
-                if codigo_producto in productos:
-                    puntaje_rubro += 10
-                    logging.info(f"Puntaje asignado: Producto '{codigo_producto}' coincide con rubro '{rubro}'.")
-                else:
-                    logging.warning(f"Producto '{codigo_producto}' no está en los productos del rubro '{rubro}'.")
+        # Verificar si el rubro de la licitación coincide exactamente con algún rubro en el mapeo
+        if rubro_column in rubros_y_productos:
+            productos_asociados = rubros_y_productos[rubro_column]
+            logging.debug(f"Productos asociados al rubro '{rubro_column}': {productos_asociados}")
+            if codigo_producto in productos_asociados:
+                puntaje_rubro += 10
+                logging.info(f"Puntaje asignado: Producto '{codigo_producto}' coincide con rubro '{rubro_column}'.")
             else:
-                logging.warning(f"Rubro '{rubro_column}' no coincide con rubro '{rubro}' en los datos cargados.")
+                logging.warning(f"Producto '{codigo_producto}' no está en los productos del rubro '{rubro_column}'.")
+        else:
+            logging.warning(f"Rubro '{rubro_column}' no coincide con ninguno de los rubros cargados.")
 
         return puntaje_rubro
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
-
 
 
 
@@ -810,8 +854,8 @@ def generar_ranking(
             'Nombre': 'first',
             'NombreOrganismo': 'first',
             'Link': 'first',
-            'Rubro3': lambda x: ' '.join(x),
-            'CodigoProductoONU': lambda x: ' '.join(x),
+            'Rubro3': 'first',  # Ya está mapeado correctamente
+            'CodigoProductoONU': 'first',
             'Tipo': 'first',
             'CantidadReclamos': 'first',
             'Descripcion': 'first',
@@ -830,14 +874,9 @@ def generar_ranking(
 
         df_licitaciones_agrupado['Puntaje Rubro'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_rubro(row, rubros_y_productos),
-        axis=1
+            axis=1
         )
-        # Revisar puntajes inesperados
-        for index, row in df_licitaciones_agrupado.iterrows():
-            if row['Puntaje Rubro'] == 0:
-                logging.warning(f"Licitación {row['CodigoExterno']} tiene puntaje 0 en rubros. Verifica: "
-                        f"Rubro3: {row['Rubro3']}, Productos: {row['CodigoProductoONU']}")
-
+        logging.info("Puntaje por rubros calculado.")
 
         df_licitaciones_agrupado['Puntaje Monto'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_monto(row['Tipo'], row['TiempoDuracionContrato']),
@@ -871,7 +910,6 @@ def generar_ranking(
         )
         data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
         data_no_relativos = [[str(x).replace("'", "") for x in row] for row in data_no_relativos]
-
 
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
@@ -932,7 +970,6 @@ def generar_ranking(
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
         data_final = [[str(x).replace("'", "") if isinstance(x, str) else x for x in row] for row in data_final]
 
-
         # Preservar el valor de la celda A1 en Hoja 2
         nombre_a1 = worksheet_ranking.acell('A1').value if worksheet_ranking.acell('A1').value else ""
 
@@ -947,6 +984,7 @@ def generar_ranking(
     except Exception as e:
         logging.error(f"Error al generar el ranking: {e}", exc_info=True)
         raise
+
 
 # -------------------------- Función Principal --------------------------
 
@@ -1003,6 +1041,7 @@ def main():
     except Exception as e:
         logging.critical(f"Script finalizado con errores: {e}", exc_info=True)
         raise
+
 
 # -------------------------- Punto de Entrada --------------------------
 
