@@ -403,26 +403,32 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
         puntaje_rubro = 0
 
+        logging.debug(f"Evaluando fila: Rubro='{rubro_column}', CodigoProducto='{codigo_producto}'")
+
         # Revisar rubros y productos
         rubros_presentes = set()
         productos_presentes = set()
 
         for rubro, productos in rubros_y_productos.items():
+            logging.debug(f"Revisando rubro '{rubro}' y productos asociados: {productos}")
             if rubro in rubro_column:
                 rubros_presentes.add(rubro)
-                logging.info(f"Rubro encontrado: {rubro} en {rubro_column}")
+                logging.info(f"Rubro encontrado: {rubro} en '{rubro_column}'")
 
-                if codigo_producto in productos:
-                    productos_presentes.add(codigo_producto)
-                    logging.info(f"Producto encontrado: {codigo_producto} asociado a rubro {rubro}")
+            # Comparar código de producto con los productos del rubro
+            if codigo_producto in productos:
+                productos_presentes.add(codigo_producto)
+                logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
 
         puntaje_rubro += len(rubros_presentes) * 5
         puntaje_rubro += len(productos_presentes) * 10
 
+        logging.debug(f"Puntaje calculado para rubros: {puntaje_rubro}")
         return puntaje_rubro
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
+
 
 
 
