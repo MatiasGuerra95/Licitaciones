@@ -358,6 +358,34 @@ def obtener_ponderaciones(worksheet_inicio):
 
 # -------------------------- Funciones de Calculo de Puntajes --------------------------
 
+def calcular_puntaje_palabra(row, palabras_clave):
+    """
+    Calcula el puntaje basado en la presencia de palabras clave en el nombre y la descripción de la licitación.
+
+    Args:
+        row (pd.Series): Una fila del DataFrame representando una licitación.
+        palabras_clave (list): Lista de palabras clave a buscar.
+
+    Returns:
+        int: El puntaje calculado basado en palabras clave.
+    """
+    try:
+        nombre = eliminar_tildes_y_normalizar(row['Nombre']) if pd.notnull(row['Nombre']) else ''
+        descripcion = eliminar_tildes_y_normalizar(row['Descripcion']) if pd.notnull(row['Descripcion']) else ''
+        puntaje_palabra = 0
+
+        for palabra in palabras_clave:
+            palabra_normalizada = eliminar_tildes_y_normalizar(palabra)
+            if palabra_normalizada in nombre or palabra_normalizada in descripcion:
+                puntaje_palabra += 2
+                logging.info(f"Palabra clave '{palabra_normalizada}' encontrada en la licitación.")
+
+        logging.debug(f"Puntaje calculado para palabras clave: {puntaje_palabra}")
+        return puntaje_palabra
+    except Exception as e:
+        logging.error(f"Error al calcular puntaje por palabra clave: {e}", exc_info=True)
+        return 0
+
 def calcular_puntaje_rubro(row, rubros_y_productos):    
     """    
     Args:
