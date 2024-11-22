@@ -706,11 +706,16 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones['Descripcion'] = df_licitaciones['Descripcion'].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
         df_licitaciones['Rubro3'] = df_licitaciones['Rubro3'].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
         df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: str(x).strip().lstrip("'") if pd.notnull(x) else x)
+
+        # Convertir las columnas de fechas a tipo datetime
+        df_licitaciones['FechaCreacion'] = pd.to_datetime(df_licitaciones['FechaCreacion'], errors='coerce')
+        df_licitaciones['FechaCierre'] = pd.to_datetime(df_licitaciones['FechaCierre'], errors='coerce')
         
         # Filtrar por fechas de publicación y cierre
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCreacion'] >= fecha_min_publicacion]
         df_licitaciones = df_licitaciones[df_licitaciones['FechaCierre'] >= fecha_min_cierre]
         logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_licitaciones)}")
+        
         # Eliminar licitaciones seleccionadas de Hoja 7
         eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
 
