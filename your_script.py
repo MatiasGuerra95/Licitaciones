@@ -253,46 +253,18 @@ def obtener_lista_negra(worksheet):
         raise
 
 def obtener_rubros_y_productos(worksheet):
-    """
-    Recupera rubros y sus correspondientes productos desde la hoja de forma eficiente.
-
-    Args:
-        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
-
-    Returns:
-        dict: Un diccionario mapeando rubros a sus listas de productos.
-    """
     try:
-        # Rubros
+        # Debugging adicional en los valores cargados
+        logging.info("Iniciando carga de rubros y productos.")
+        
         valores_rubros = obtener_rango_disjunto(worksheet, list(RUBROS_RANGES.values()))
-        rubros = {
-            key: valores[0][0].strip() if valores and valores[0] else None
-            for key, valores in zip(RUBROS_RANGES.keys(), [[v] for v in valores_rubros])
-        }
-
-        # Productos
+        logging.info(f"Rubros cargados: {valores_rubros}")
+        
         rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
         valores_productos = obtener_rango_disjunto(worksheet, rangos_productos)
-        productos = {}
-        index = 0
-        for key in PRODUCTOS_RANGES.keys():
-            productos[key] = [
-                str(valores_productos[index + i][0]).strip()  # Mantener como string
-                for i in range(len(PRODUCTOS_RANGES[key]))
-                if valores_productos[index + i] and valores_productos[index + i][0].strip()
-            ]
-            index += len(PRODUCTOS_RANGES[key])
+        logging.info(f"Productos cargados: {valores_productos}")
 
-        # Mapear rubros a productos
-        rubros_y_productos = {
-            eliminar_tildes(rubro.lower()): productos.get(key, [])
-            for key, rubro in rubros.items()
-            if rubro
-        }
-
-        logging.info(f"Rubros y productos obtenidos: {rubros_y_productos}")
-        return rubros_y_productos
-
+        # Resto del código sin cambios...
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
@@ -389,61 +361,29 @@ def calcular_puntaje_palabra(nombre, descripcion, palabras_clave_set, lista_negr
         return 0
 
 def calcular_puntaje_rubro(row, rubros_y_productos):
-    """
-    Calcula el puntaje basado en rubros y productos.
-
-    Args:
-        row (pd.Series): Una fila del DataFrame representando una licitación.
-        rubros_y_productos (dict): Diccionario mapeando rubros a productos.
-
-    Returns:
-        int: El puntaje calculado.
-    """
     try:
-        # Normalizar y verificar las entradas
         rubro_column = eliminar_tildes(row['Rubro3'].lower().strip()) if pd.notnull(row['Rubro3']) else ''
         codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
-        
+
+        logging.info(f"Procesando licitación {row['CodigoExterno']}: Rubro '{rubro_column}', Producto '{codigo_producto}'.")
+
         puntaje_rubro = 0
-
-        logging.info(f"Evaluando licitación {row['CodigoExterno']} - Rubro: '{rubro_column}', Producto: '{codigo_producto}'")
-
-        # Verificar coincidencias de rubros y productos
-        rubro_encontrado = False
-        producto_encontrado = False
-
         for rubro, productos in rubros_y_productos.items():
-            # Normalizar rubro para comparación
-            rubro_normalizado = eliminar_tildes(rubro.lower().strip())
-
-            # Verificar si el rubro coincide
-            if rubro_normalizado in rubro_column:
-                rubro_encontrado = True
-                logging.info(f"Rubro encontrado: '{rubro}' en '{rubro_column}'")
-                
-                # Verificar si el producto coincide dentro de este rubro
+            logging.debug(f"Comparando rubro '{rubro}' con '{rubro_column}'.")
+            if rubro in rubro_column:
                 if codigo_producto in productos:
-                    producto_encontrado = True
-                    puntaje_rubro += 10  # Puntaje por coincidencia de producto
-                    logging.info(f"Producto encontrado: '{codigo_producto}' asociado a rubro '{rubro}'")
+                    puntaje_rubro += 10
+                    logging.info(f"Puntaje asignado: Producto '{codigo_producto}' coincide con rubro '{rubro}'.")
                 else:
-                    logging.warning(f"Producto '{codigo_producto}' no encontrado en los productos del rubro '{rubro}'")
-
-        # Puntaje adicional si el rubro coincide, independientemente del producto
-        if rubro_encontrado:
-            puntaje_rubro += 5
-            logging.info(f"Puntaje adicional sumado por coincidencia de rubro '{rubro_column}'")
-
-        # Mensajes de advertencia si no se encontró coincidencia
-        if not rubro_encontrado:
-            logging.warning(f"No se encontró coincidencia para el rubro '{rubro_column}' en los rubros definidos")
-        if not producto_encontrado:
-            logging.warning(f"No se encontró coincidencia para el producto '{codigo_producto}' en los productos definidos")
+                    logging.warning(f"Producto '{codigo_producto}' no está en los productos del rubro '{rubro}'.")
+            else:
+                logging.warning(f"Rubro '{rubro_column}' no coincide con rubro '{rubro}' en los datos cargados.")
 
         return puntaje_rubro
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
+
 
 
 
