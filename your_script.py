@@ -264,23 +264,19 @@ def obtener_rubros_y_productos(worksheet):
     """
     try:
         # Rubros
-        rangos_rubros = list(RUBROS_RANGES.values())
-        valores_rubros = obtener_rango_disjunto(worksheet, rangos_rubros)
-
+        valores_rubros = obtener_rango_disjunto(worksheet, list(RUBROS_RANGES.values()))
         rubros = {
             key: valores[0][0].strip() if valores and valores[0] else None
             for key, valores in zip(RUBROS_RANGES.keys(), [[v] for v in valores_rubros])
         }
 
         # Productos
-        rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
-        valores_productos = obtener_rango_disjunto(worksheet, rangos_productos)
-
+        valores_productos = obtener_rango_disjunto(worksheet, sum(PRODUCTOS_RANGES.values(), []))
         productos = {}
         index = 0
         for key in PRODUCTOS_RANGES.keys():
             productos[key] = [
-                valores_productos[index + i][0].strip().lower()
+                valores_productos[index + i][0].strip()  # Mantener como string
                 for i in range(len(PRODUCTOS_RANGES[key]))
                 if valores_productos[index + i] and valores_productos[index + i][0].strip()
             ]
@@ -288,7 +284,7 @@ def obtener_rubros_y_productos(worksheet):
 
         # Mapear rubros a productos
         rubros_y_productos = {
-            eliminar_tildes(rubro.lower()): productos.get(key, [])
+            rubro.lower(): productos.get(key, [])
             for key, rubro in rubros.items()
             if rubro
         }
@@ -299,6 +295,7 @@ def obtener_rubros_y_productos(worksheet):
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
+
 
 def obtener_puntaje_clientes(worksheet):
     """
@@ -402,20 +399,22 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         int: El puntaje calculado.
     """
     try:
-        rubro_column = eliminar_tildes(row['Rubro3'].lower()) if pd.notnull(row['Rubro3']) else ''
-        productos_column = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
+        rubro_column = row['Rubro3'].lower().strip() if pd.notnull(row['Rubro3']) else ''
+        codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
         puntaje_rubro = 0
+
+        # Revisar rubros y productos
         rubros_presentes = set()
         productos_presentes = set()
 
         for rubro, productos in rubros_y_productos.items():
             if rubro in rubro_column:
                 rubros_presentes.add(rubro)
-                logging.info(f"Rubro encontrado: '{rubro}' en '{rubro_column}'")
-                for producto in productos:
-                    if producto in productos_column:
-                        productos_presentes.add(producto)
-                        logging.info(f"Producto encontrado: '{producto}' en '{productos_column}'")
+                logging.info(f"Rubro encontrado: {rubro} en {rubro_column}")
+
+                if codigo_producto in productos:
+                    productos_presentes.add(codigo_producto)
+                    logging.info(f"Producto encontrado: {codigo_producto} asociado a rubro {rubro}")
 
         puntaje_rubro += len(rubros_presentes) * 5
         puntaje_rubro += len(productos_presentes) * 10
@@ -424,6 +423,7 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
+
 
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
