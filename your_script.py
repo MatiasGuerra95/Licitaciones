@@ -893,6 +893,72 @@ def procesar_licitaciones_y_generar_ranking(
         # Subir el ranking final a Hoja 2
         actualizar_hoja(worksheet_ranking, 'A3', data_final)
         logging.info("Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.")
+
+        # -------------- Eliminar Licitaciones Seleccionadas --------------
+        # Llamar a la función para eliminar licitaciones seleccionadas
+        eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
+    
     except Exception as e:
         logging.error(f"Error en procesar_licitaciones_y_generar_ranking: {e}", exc_info=True)
         raise
+
+# -------------------------- Función Principal --------------------------
+
+def main():
+    """
+    Función principal que orquesta todo el flujo de procesamiento.
+    """
+    try:
+        # Configurar logging
+        setup_logging()
+
+        # Autenticar con Google Sheets
+        gc = authenticate_google_sheets()
+
+        # Abrir la hoja de cálculo
+        try:
+            sh = gc.open_by_key(SHEET_ID)
+            logging.info(f"Spreadsheet con ID {SHEET_ID} abierto exitosamente.")
+        except SpreadsheetNotFound as e:
+            logging.error(f"Spreadsheet con ID {SHEET_ID} no encontrado: {e}", exc_info=True)
+            raise
+        except Exception as e:
+            logging.error(f"Error al abrir Spreadsheet: {e}", exc_info=True)
+            raise
+
+        # Recuperar todas las worksheets necesarias por nombre
+        try:
+            worksheet_inicio = obtener_worksheet(sh, 'Inicio')                  # Hoja 1
+            worksheet_ranking = obtener_worksheet(sh, 'Ranking')                # Hoja 2
+            worksheet_seleccion = obtener_worksheet(sh, 'Selección')            # Hoja 3
+            worksheet_rubros = obtener_worksheet(sh, 'Rubros')                  # Hoja 4
+            worksheet_clientes = obtener_worksheet(sh, 'Clientes')              # Hoja 6
+            worksheet_licitaciones_activas = obtener_worksheet(sh, 'Licitaciones MP')  # Hoja 7
+            worksheet_ranking_no_relativo = obtener_worksheet(sh, 'Ranking no relativo')    # Hoja 8
+            worksheet_lista_negra = obtener_worksheet(sh, 'LNegra Palabras')        # Hoja 10
+            worksheet_sicep = obtener_worksheet(sh, 'Licitaciones Sicep')                     # Hoja 11
+        except Exception as e:
+            logging.error(f"Error al obtener una o más hojas: {e}", exc_info=True)
+            raise
+
+        # Ejecutar el procesamiento principal
+        procesar_licitaciones_y_generar_ranking(
+            worksheet_inicio,
+            worksheet_ranking,
+            worksheet_seleccion,
+            worksheet_rubros,
+            worksheet_clientes,
+            worksheet_licitaciones_activas,
+            worksheet_ranking_no_relativo,
+            worksheet_lista_negra,
+            worksheet_sicep
+        )
+
+    except Exception as e:
+        logging.critical(f"Script finalizado con errores: {e}", exc_info=True)
+        raise
+
+# -------------------------- Punto de Entrada --------------------------
+
+if __name__ == "__main__":
+    main()
