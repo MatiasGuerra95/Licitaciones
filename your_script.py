@@ -903,13 +903,13 @@ def main():
         try:
             worksheet_inicio = obtener_worksheet(sh, 'Inicio')                  # Hoja 1
             worksheet_ranking = obtener_worksheet(sh, 'Ranking')                # Hoja 2
-            worksheet_seleccion = obtener_worksheet(sh, 'Seleccion')            # Hoja 3
+            worksheet_seleccion = obtener_worksheet(sh, 'Selección')            # Hoja 3
             worksheet_rubros = obtener_worksheet(sh, 'Rubros')                  # Hoja 4
             worksheet_clientes = obtener_worksheet(sh, 'Clientes')              # Hoja 6
-            worksheet_licitaciones_activas = obtener_worksheet(sh, 'Licitaciones Activas')  # Hoja 7
-            worksheet_ranking_no_relativo = obtener_worksheet(sh, 'Ranking No Relativo')    # Hoja 8
-            worksheet_lista_negra = obtener_worksheet(sh, 'Lista Negra')        # Hoja 10
-            worksheet_sicep = obtener_worksheet(sh, 'Sicep')                     # Hoja 11
+            worksheet_licitaciones_activas = obtener_worksheet(sh, 'Licitaciones MP')  # Hoja 7
+            worksheet_ranking_no_relativo = obtener_worksheet(sh, 'Ranking no relativo')    # Hoja 8
+            worksheet_lista_negra = obtener_worksheet(sh, 'LNegra Palabras')        # Hoja 10
+            worksheet_sicep = obtener_worksheet(sh, 'Licitaciones Sicep')                     # Hoja 11
         except Exception as e:
             logging.error(f"Error al obtener una o más hojas: {e}", exc_info=True)
             raise
