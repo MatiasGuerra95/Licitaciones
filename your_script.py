@@ -248,21 +248,26 @@ def obtener_rubros_y_productos(worksheet_rubros):
         
         # Utilizar batch_get para recuperar todos los rangos de rubros de una sola vez
         valores_rubros = worksheet_rubros.batch_get(rubros_ranges)
+        logging.debug(f"Valores de rubros obtenidos: {valores_rubros}")
         
         # Extraer los valores de rubros
         rubros = {
             key: valores[0][0].strip() if valores and valores[0] and valores[0][0] else None
             for key, valores in zip(RUBROS_RANGES.keys(), valores_rubros)
         }
+        logging.debug(f"Rubros extraídos: {rubros}")
+
+        # Verificar si los rubros están vacíos
+        for key, rubro in rubros.items():
+            if rubro is None:
+                logging.warning(f"Rubro '{key}' está vacío en la celda {RUBROS_RANGES[key]}.")
 
         # Definir los rangos de productos
         rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
         
         # Utilizar batch_get para recuperar todos los rangos de productos de una sola vez
         valores_productos = worksheet_rubros.batch_get(rangos_productos)
-        
-        # Agregar depuración para verificar la estructura
-        logging.debug(f"Estructura de valores_productos: {valores_productos}")
+        logging.debug(f"Valores de productos obtenidos: {valores_productos}")
         
         # Asignar productos a cada rubro
         productos = {}
@@ -274,12 +279,13 @@ def obtener_rubros_y_productos(worksheet_rubros):
                 if valores_productos[index + i] and valores_productos[index + i][0][0].strip()
             ]
             index += len(PRODUCTOS_RANGES[key])
+        logging.debug(f"Productos asignados por rubro: {productos}")
 
         # Mapear rubros a productos
         rubros_y_productos = {
             eliminar_tildes_y_normalizar(rubro.lower()): productos.get(key, [])
             for key, rubro in rubros.items()
-            if rubro
+            if rubro and rubro.strip() != ""
         }
 
         logging.info(f"Rubros y productos obtenidos: {rubros_y_productos}")
