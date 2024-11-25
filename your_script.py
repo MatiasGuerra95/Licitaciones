@@ -660,38 +660,66 @@ def eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitacio
         worksheet_licitaciones_activas (gspread.Worksheet): Hoja 7 que contiene las licitaciones activas.
     """
     try:
-        codigos_seleccionados = worksheet_seleccion.col_values(1)[3:]  # Asumiendo que los 'CodigoExterno' están en la primera columna a partir de la fila 4
-        codigos_seleccionados = set([eliminar_tildes_y_normalizar(codigo.lower()) for codigo in codigos_seleccionados if codigo])
-        logging.info(f"Total de 'CodigoExterno' seleccionados para eliminar: {len(codigos_seleccionados)}")
+        # Obtener 'CodigoExterno' seleccionados desde Hoja 3 (columna 1, desde fila 4)
+        codigos_seleccionados = worksheet_seleccion.col_values(1)[3:]
+        codigos_seleccionados_normalizados = set([
+            eliminar_tildes_y_normalizar(codigo.lower()) for codigo in codigos_seleccionados if codigo
+        ])
+        logging.info(f"Total de 'CodigoExterno' seleccionados para eliminar: {len(codigos_seleccionados_normalizados)}")
 
+        if not codigos_seleccionados_normalizados:
+            logging.info("No hay 'CodigoExterno' seleccionados para eliminar.")
+            return
+
+        # Obtener todas las licitaciones activas de Hoja 7
         licitaciones = worksheet_licitaciones_activas.get_all_values()
         if not licitaciones or len(licitaciones) < 2:
             logging.warning("No hay licitaciones en la Hoja 7 para procesar.")
             return
 
+        # Convertir a DataFrame
         df_licitaciones = pd.DataFrame(licitaciones[1:], columns=licitaciones[0])
         logging.info(f"Total de licitaciones en la Hoja 7 antes de filtrar: {len(df_licitaciones)}")
 
-        df_licitaciones_filtrado = df_licitaciones[~df_licitaciones['CodigoExterno'].str.lower().isin(codigos_seleccionados)]
-        logging.info(f"Total de licitaciones en la Hoja 7 después de filtrar: {len(df_licitaciones_filtrado)}")
+        if 'CodigoExterno' not in df_licitaciones.columns:
+            logging.error("La columna 'CodigoExterno' no está presente en la Hoja 7.")
+            return
 
-        # Preparar datos para subir
-        data_to_upload = [df_licitaciones_filtrado.columns.values.tolist()] + df_licitaciones_filtrado.values.tolist()
+        # Normalizar 'CodigoExterno' en DataFrame
+        df_licitaciones['CodigoExterno_normalizado'] = df_licitaciones['CodigoExterno'].astype(str).apply(lambda x: eliminar_tildes_y_normalizar(x.lower()))
+
+        # Filtrar licitaciones que están en 'codigos_seleccionados_normalizados'
+        df_eliminadas = df_licitaciones[df_licitaciones['CodigoExterno_normalizado'].isin(codigos_seleccionados_normalizados)]
+        num_eliminadas = len(df_eliminadas)
+        logging.info(f"Total de licitaciones a eliminar de la Hoja 7: {num_eliminadas}")
+
+        if num_eliminadas == 0:
+            logging.info("No se encontraron licitaciones coincidentes para eliminar.")
+            return
+
+        # Filtrar las licitaciones que no están en 'codigos_seleccionados_normalizados'
+        df_filtrado = df_licitaciones[~df_licitaciones['CodigoExterno_normalizado'].isin(codigos_seleccionados_normalizados)]
+        logging.info(f"Total de licitaciones en la Hoja 7 después de filtrar: {len(df_filtrado)}")
+
+        # Preparar datos para subir: incluir cabecera y eliminar la columna 'CodigoExterno_normalizado'
+        data_to_upload = [df_filtrado.drop(columns=['CodigoExterno_normalizado']).columns.tolist()] + df_filtrado.drop(columns=['CodigoExterno_normalizado']).values.tolist()
         data_to_upload = [[str(x) for x in row] for row in data_to_upload]
 
-        # Actualizar la Hoja 7
+        # Limpiar y actualizar Hoja 7
         worksheet_licitaciones_activas.clear()
         logging.info("Contenido de la Hoja 7 borrado antes de actualizar con datos filtrados.")
 
         actualizar_hoja(worksheet_licitaciones_activas, 'A1', data_to_upload)
-        logging.info(f"Se eliminaron {len(codigos_seleccionados)} licitaciones seleccionadas de la Hoja 7.")
-        print(f"Se eliminaron {len(codigos_seleccionados)} licitaciones seleccionadas de la Hoja 7.")
+        logging.info(f"Se eliminaron {num_eliminadas} licitaciones seleccionadas de la Hoja 7.")
+        print(f"Se eliminaron {num_eliminadas} licitaciones seleccionadas de la Hoja 7.")
+
     except APIError as e:
         logging.error(f"APIError al eliminar licitaciones seleccionadas: {e}", exc_info=True)
         raise
     except Exception as e:
         logging.error(f"Error al eliminar licitaciones seleccionadas: {e}", exc_info=True)
         raise
+
 
 # -------------------------- Función Principal de Procesamiento --------------------------
 
@@ -737,26 +765,21 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Fecha mínima de publicación: {fecha_min_publicacion}")
         logging.info(f"Fecha mínima de cierre: {fecha_min_cierre}")
 
-        # Descargar y procesar licitaciones (incluyendo SICEP)
-        current_year = datetime.now().year
-        current_month = datetime.now().month
-        previous_month = current_month - 1 if current_month > 1 else 12
-        previous_year = current_year if current_month > 1 else current_year - 1
+        # -------------- Eliminar Licitaciones Seleccionadas --------------
+        # Llamar a la función para eliminar licitaciones seleccionadas antes de procesar
+        eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
 
-        url_mes_actual = f"{BASE_URL}{current_year}-{current_month:02d}.zip"
-        url_mes_anterior = f"{BASE_URL}{previous_year}-{previous_month:02d}.zip"
+        # Volver a obtener las licitaciones activas después de la eliminación
+        licitaciones_actualizadas = worksheet_licitaciones_activas.get_all_values()
+        if not licitaciones_actualizadas or len(licitaciones_actualizadas) < 2:
+            logging.warning("No hay licitaciones activas después de la eliminación.")
+            return
 
-        df_mes_actual = procesar_licitaciones(url_mes_actual)
-        df_mes_anterior = procesar_licitaciones(url_mes_anterior)
-        df_sicep = integrar_licitaciones_sicep(worksheet_sicep)
-
-        # Concatenar todas las licitaciones
-        df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
-        df_licitaciones.drop_duplicates(subset=['CodigoExterno'], inplace=True)
-        logging.info(f"Total de licitaciones después de concatenar y eliminar duplicados: {len(df_licitaciones)}")
+        df_licitaciones = pd.DataFrame(licitaciones_actualizadas[1:], columns=licitaciones_actualizadas[0])
+        logging.info(f"Total de licitaciones activas después de eliminar seleccionadas: {len(df_licitaciones)}")
 
         # Normalizar y limpiar las columnas antes de procesar
-        for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico']:
+        for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
             if col in df_licitaciones.columns:
                 df_licitaciones[col] = df_licitaciones[col].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
         
@@ -778,18 +801,28 @@ def procesar_licitaciones_y_generar_ranking(
         # -------------- Filtrar Licitaciones de Organizaciones de Salud (Vectorizado) --------------
 
         # Crear un patrón regex para los términos de exclusión
-        patron_exclusion = '|'.join([re.escape(termino) for termino in SALUD_EXCLUIR])
+        patron_exclusion = '|'.join([re.escape(termino.lower()) for termino in SALUD_EXCLUIR])
+
+        # Normalizar 'NombreOrganismo' para el filtro
+        df_licitaciones['NombreOrganismo_normalizado'] = df_licitaciones['NombreOrganismo'].astype(str).apply(lambda x: eliminar_tildes_y_normalizar(x))
 
         # Aplicar el filtro utilizando str.contains con case insensitivity
+        df_filtrado_salud = df_licitaciones[
+            df_licitaciones['NombreOrganismo_normalizado'].str.contains(patron_exclusion, case=False, na=False)
+        ]
+        num_filtradas_salud = len(df_filtrado_salud)
         df_licitaciones = df_licitaciones[
-            ~df_licitaciones['NombreOrganismo'].str.contains(patron_exclusion, case=False, na=False)
+            ~df_licitaciones['NombreOrganismo_normalizado'].str.contains(patron_exclusion, case=False, na=False)
         ]
         logging.info(f"Total de licitaciones después de excluir organizaciones de salud: {len(df_licitaciones)}")
+        logging.info(f"Total de licitaciones filtradas por salud: {num_filtradas_salud}")
+
+        # Continuar con el cálculo de puntajes y generación del ranking...
 
         # Calcular puntajes
         palabras_clave = obtener_palabras_clave(worksheet_inicio)
         lista_negra = obtener_lista_negra(worksheet_lista_negra)
-        rubros_y_productos = obtener_rubros_y_productos(worksheet_inicio)  # Pasar worksheet_rubros
+        rubros_y_productos = obtener_rubros_y_productos(worksheet_inicio)
         puntaje_clientes = obtener_puntaje_clientes(worksheet_clientes)
         ponderaciones = obtener_ponderaciones(worksheet_inicio)
 
@@ -900,13 +933,10 @@ def procesar_licitaciones_y_generar_ranking(
         actualizar_hoja(worksheet_ranking, 'A3', data_final)
         logging.info("Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.")
 
-        # -------------- Eliminar Licitaciones Seleccionadas --------------
-        # Llamar a la función para eliminar licitaciones seleccionadas
-        eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
-    
     except Exception as e:
         logging.error(f"Error en procesar_licitaciones_y_generar_ranking: {e}", exc_info=True)
         raise
+
 
 # -------------------------- Función Principal --------------------------
 
