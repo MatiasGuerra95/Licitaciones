@@ -234,25 +234,34 @@ def obtener_lista_negra(worksheet_lista_negra):
 
 def obtener_rubros_y_productos(worksheet_inicio):
     """
-    Recupera rubros y sus correspondientes productos desde la hoja de forma eficiente.
+    Recupera rubros y sus correspondientes productos desde la hoja de forma eficiente utilizando batch_get.
 
     Args:
-        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
+        worksheet_inicio (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
 
     Returns:
         dict: Un diccionario mapeando rubros a sus listas de productos.
     """
     try:
-        # Rubros
-        valores_rubros = obtener_rango_hoja(worksheet_inicio, ','.join(RUBROS_RANGES.values()))
+        # Definir los rangos de rubros
+        rubros_ranges = list(RUBROS_RANGES.values())  # ['C13', 'F13', 'I13']
+        
+        # Utilizar batch_get para recuperar todos los rangos de rubros de una sola vez
+        valores_rubros = worksheet_inicio.batch_get(rubros_ranges)
+        
+        # Extraer los valores de rubros
         rubros = {
-            key: valores[0][0].strip() if valores and valores[0] else None
+            key: valores[0][0].strip() if valores and valores[0] and valores[0][0] else None
             for key, valores in zip(RUBROS_RANGES.keys(), valores_rubros)
         }
 
-        # Productos
+        # Definir los rangos de productos
         rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
-        valores_productos = obtener_rango_disjunto(worksheet_inicio, rangos_productos)
+        
+        # Utilizar batch_get para recuperar todos los rangos de productos de una sola vez
+        valores_productos = worksheet_inicio.batch_get(rangos_productos)
+        
+        # Asignar productos a cada rubro
         productos = {}
         index = 0
         for key in PRODUCTOS_RANGES.keys():
@@ -276,6 +285,7 @@ def obtener_rubros_y_productos(worksheet_inicio):
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
+
 
 def obtener_puntaje_clientes(worksheet_clientes):
     """
@@ -347,7 +357,7 @@ def obtener_ponderaciones(worksheet_inicio):
 
 def obtener_rango_disjunto(worksheet, rangos):
     """
-    Obtiene valores de celdas disjuntas de una hoja de cálculo.
+    Obtiene valores de celdas disjuntas de una hoja de cálculo utilizando batch_get.
 
     Args:
         worksheet (gspread.Worksheet): La hoja de cálculo.
@@ -356,15 +366,15 @@ def obtener_rango_disjunto(worksheet, rangos):
     Returns:
         list: Lista de valores obtenidos para cada rango.
     """
-    valores = []
-    for rango in rangos:
-        try:
-            valores.extend(worksheet.get(rango))
+    try:
+        valores = worksheet.batch_get(rangos)
+        for rango in rangos:
             logging.info(f"Valores obtenidos del rango {rango}.")
-        except Exception as e:
-            logging.error(f"Error al obtener valores del rango {rango}: {e}", exc_info=True)
-            raise
-    return valores
+        return [val for sublist in valores for val in sublist]  # Aplanar la lista
+    except Exception as e:
+        logging.error(f"Error al obtener valores de rangos disjuntos {rangos}: {e}", exc_info=True)
+        raise
+
 
 # -------------------------- Funciones de Calculo de Puntajes --------------------------
 
