@@ -196,7 +196,7 @@ def obtener_palabras_clave(worksheet_inicio):
     Recupera y procesa frases clave desde rangos especificados en la hoja.
 
     Args:
-        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar las palabras clave.
+        worksheet_inicio (gspread.Worksheet): La hoja de cálculo de la cual recuperar las palabras clave.
 
     Returns:
         set: Un conjunto de frases clave procesadas.
@@ -218,7 +218,7 @@ def obtener_lista_negra(worksheet_lista_negra):
     Recupera las frases de la lista negra desde el rango especificado en la hoja.
 
     Args:
-        worksheet (gspread.Worksheet): La hoja de cálculo de la cual recuperar la lista negra.
+        worksheet_lista_negra (gspread.Worksheet): La hoja de cálculo de la cual recuperar la lista negra.
 
     Returns:
         set: Un conjunto de frases de la lista negra.
@@ -232,12 +232,12 @@ def obtener_lista_negra(worksheet_lista_negra):
         logging.error(f"Error al obtener la lista negra: {e}", exc_info=True)
         raise
 
-def obtener_rubros_y_productos(worksheet_inicio):
+def obtener_rubros_y_productos(worksheet_rubros):
     """
     Recupera rubros y sus correspondientes productos desde la hoja de forma eficiente utilizando batch_get.
 
     Args:
-        worksheet_inicio (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
+        worksheet_rubros (gspread.Worksheet): La hoja de cálculo de la cual recuperar rubros y productos.
 
     Returns:
         dict: Un diccionario mapeando rubros a sus listas de productos.
@@ -247,7 +247,7 @@ def obtener_rubros_y_productos(worksheet_inicio):
         rubros_ranges = list(RUBROS_RANGES.values())  # ['C13', 'F13', 'I13']
         
         # Utilizar batch_get para recuperar todos los rangos de rubros de una sola vez
-        valores_rubros = worksheet_inicio.batch_get(rubros_ranges)
+        valores_rubros = worksheet_rubros.batch_get(rubros_ranges)
         
         # Extraer los valores de rubros
         rubros = {
@@ -259,7 +259,7 @@ def obtener_rubros_y_productos(worksheet_inicio):
         rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
         
         # Utilizar batch_get para recuperar todos los rangos de productos de una sola vez
-        valores_productos = worksheet_inicio.batch_get(rangos_productos)
+        valores_productos = worksheet_rubros.batch_get(rangos_productos)
         
         # Asignar productos a cada rubro
         productos = {}
@@ -285,7 +285,6 @@ def obtener_rubros_y_productos(worksheet_inicio):
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
-
 
 def obtener_puntaje_clientes(worksheet_clientes):
     """
@@ -374,7 +373,6 @@ def obtener_rango_disjunto(worksheet, rangos):
     except Exception as e:
         logging.error(f"Error al obtener valores de rangos disjuntos {rangos}: {e}", exc_info=True)
         raise
-
 
 # -------------------------- Funciones de Calculo de Puntajes --------------------------
 
@@ -538,7 +536,7 @@ def actualizar_hoja(worksheet, rango, datos):
         Exception: Para cualquier otro error.
     """
     try:
-        worksheet.update(range_name=rango, values=datos)
+        worksheet.update(rango, datos)
         logging.info(f"Hoja actualizada exitosamente en el rango {rango}.")
     except APIError as e:
         logging.warning(f"APIError al actualizar la Hoja en el rango {rango}: {e}. Reintentando...")
@@ -771,7 +769,7 @@ def procesar_licitaciones_y_generar_ranking(
         # Calcular puntajes
         palabras_clave = obtener_palabras_clave(worksheet_inicio)
         lista_negra = obtener_lista_negra(worksheet_lista_negra)
-        rubros_y_productos = obtener_rubros_y_productos(worksheet_rubros)
+        rubros_y_productos = obtener_rubros_y_productos(worksheet_rubros)  # Pasar worksheet_rubros
         puntaje_clientes = obtener_puntaje_clientes(worksheet_clientes)
         ponderaciones = obtener_ponderaciones(worksheet_inicio)
 
