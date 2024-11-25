@@ -261,14 +261,17 @@ def obtener_rubros_y_productos(worksheet_rubros):
         # Utilizar batch_get para recuperar todos los rangos de productos de una sola vez
         valores_productos = worksheet_rubros.batch_get(rangos_productos)
         
+        # Agregar depuración para verificar la estructura
+        logging.debug(f"Estructura de valores_productos: {valores_productos}")
+        
         # Asignar productos a cada rubro
         productos = {}
         index = 0
         for key in PRODUCTOS_RANGES.keys():
             productos[key] = [
-                eliminar_tildes_y_normalizar(valores_productos[index + i][0])
+                eliminar_tildes_y_normalizar(valores_productos[index + i][0][0])
                 for i in range(len(PRODUCTOS_RANGES[key]))
-                if valores_productos[index + i] and valores_productos[index + i][0].strip()
+                if valores_productos[index + i] and valores_productos[index + i][0][0].strip()
             ]
             index += len(PRODUCTOS_RANGES[key])
 
@@ -285,6 +288,7 @@ def obtener_rubros_y_productos(worksheet_rubros):
     except Exception as e:
         logging.error(f"Error al obtener rubros y productos: {e}", exc_info=True)
         raise
+
 
 def obtener_puntaje_clientes(worksheet_clientes):
     """
