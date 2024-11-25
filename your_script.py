@@ -433,44 +433,29 @@ def calcular_puntaje_rubro(row, rubros_y_productos):
         return 0
 
 def calcular_puntaje_rubro(row, rubros_y_productos):
-    """
-    Calculates the score based on rubros and products.
-    """
-    try:
-        rubro_column = eliminar_tildes_y_normalizar(row['Rubro3']) if pd.notnull(row['Rubro3']) else ''
-        codigo_producto = str(row['CodigoProductoONU']).strip() if pd.notnull(row['CodigoProductoONU']) else ''
-        puntaje_rubro = 0
+    rubro_column = row['Rubro3']
+    productos_column = row['CodigoProductoONU']
+    puntaje_rubro = 0
+    rubros_presentes = set()
+    productos_presentes = set()
 
-        logging.debug(f"Evaluating row: Rubro='{rubro_column}', CodigoProducto='{codigo_producto}'")
+    # Buscar rubros presentes en la columna "Rubro3"
+    for rubro, productos in rubros_y_productos.items():
+        if rubro in rubro_column.lower():
+            rubros_presentes.add(rubro)  # Añadir rubro al set
 
-        rubros_presentes = set()
-        productos_presentes = set()
-
-        # Log the rubros and productos we are checking against
-        for rubro, productos in rubros_y_productos.items():
-            rubro_normalizado = eliminar_tildes_y_normalizar(rubro)
-            logging.debug(f"Checking rubro '{rubro_normalizado}' with associated products: {productos}")
-
-            if rubro_normalizado == rubro_column:
-                rubros_presentes.add(rubro_normalizado)
-                logging.info(f"Rubro found: {rubro_normalizado} in '{rubro_column}'")
-
+            # Acumular los productos asociados al rubro
             for producto in productos:
-                if producto == codigo_producto:
+                if producto in productos_column.lower():
                     productos_presentes.add(producto)
-                    logging.info(f"Producto found: '{codigo_producto}' associated with rubro '{rubro_normalizado}'")
 
-        if not rubros_presentes and not productos_presentes:
-            logging.warning(f"No matches found for Rubro3='{rubro_column}' or CodigoProductoONU='{codigo_producto}'.")
+    # Asignar 5 puntos por cada rubro encontrado
+    puntaje_rubro += len(rubros_presentes) * 5
 
-        puntaje_rubro += len(rubros_presentes) * 5  # Points for rubro
-        puntaje_rubro += len(productos_presentes) * 10  # Points for product
+    # Asignar 10 puntos por cada producto encontrado
+    puntaje_rubro += len(productos_presentes) * 10
 
-        logging.debug(f"Calculated rubro score: {puntaje_rubro}")
-        return puntaje_rubro
-    except Exception as e:
-        logging.error(f"Error calculating rubro score: {e}", exc_info=True)
-        return 0
+    return puntaje_rubro
 
 
 
