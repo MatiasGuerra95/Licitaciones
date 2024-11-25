@@ -789,7 +789,7 @@ def procesar_licitaciones_y_generar_ranking(
         # Calcular puntajes
         palabras_clave = obtener_palabras_clave(worksheet_inicio)
         lista_negra = obtener_lista_negra(worksheet_lista_negra)
-        rubros_y_productos = obtener_rubros_y_productos(worksheet_rubros)  # Pasar worksheet_rubros
+        rubros_y_productos = obtener_rubros_y_productos(worksheet_inicio)  # Pasar worksheet_rubros
         puntaje_clientes = obtener_puntaje_clientes(worksheet_clientes)
         ponderaciones = obtener_ponderaciones(worksheet_inicio)
 
