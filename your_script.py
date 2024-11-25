@@ -191,7 +191,7 @@ def obtener_rango_hoja(worksheet, rango):
         logging.error(f"Error al obtener valores del rango {rango}: {e}", exc_info=True)
         raise
 
-def obtener_palabras_clave(worksheet):
+def obtener_palabras_clave(worksheet_inicio):
     """
     Recupera y procesa frases clave desde rangos especificados en la hoja.
 
@@ -204,7 +204,7 @@ def obtener_palabras_clave(worksheet):
     try:
         palabras_clave = []
         for key, rango in PALABRAS_CLAVE_RANGES.items():
-            valores = obtener_rango_hoja(worksheet, rango)
+            valores = obtener_rango_hoja(worksheet_inicio, rango)
             palabras_clave.extend([eliminar_tildes_y_normalizar(p) for fila in valores for p in fila if p])
         palabras_clave_set = set(palabras_clave)
         logging.info(f"Palabras clave obtenidas: {palabras_clave_set}")
@@ -213,7 +213,7 @@ def obtener_palabras_clave(worksheet):
         logging.error(f"Error al obtener palabras clave: {e}", exc_info=True)
         raise
 
-def obtener_lista_negra(worksheet):
+def obtener_lista_negra(worksheet_lista_negra):
     """
     Recupera las frases de la lista negra desde el rango especificado en la hoja.
 
@@ -224,7 +224,7 @@ def obtener_lista_negra(worksheet):
         set: Un conjunto de frases de la lista negra.
     """
     try:
-        data_lista_negra = obtener_rango_hoja(worksheet, LISTA_NEGRA_RANGE)
+        data_lista_negra = obtener_rango_hoja(worksheet_lista_negra, LISTA_NEGRA_RANGE)
         lista_negra = set([eliminar_tildes_y_normalizar(row[0]) for row in data_lista_negra if row and row[0].strip()])
         logging.info(f"Lista negra obtenida: {lista_negra}")
         return lista_negra
@@ -232,7 +232,7 @@ def obtener_lista_negra(worksheet):
         logging.error(f"Error al obtener la lista negra: {e}", exc_info=True)
         raise
 
-def obtener_rubros_y_productos(worksheet):
+def obtener_rubros_y_productos(worksheet_inicio):
     """
     Recupera rubros y sus correspondientes productos desde la hoja de forma eficiente.
 
@@ -244,7 +244,7 @@ def obtener_rubros_y_productos(worksheet):
     """
     try:
         # Rubros
-        valores_rubros = obtener_rango_hoja(worksheet, ','.join(RUBROS_RANGES.values()))
+        valores_rubros = obtener_rango_hoja(worksheet_inicio, ','.join(RUBROS_RANGES.values()))
         rubros = {
             key: valores[0][0].strip() if valores and valores[0] else None
             for key, valores in zip(RUBROS_RANGES.keys(), valores_rubros)
@@ -252,7 +252,7 @@ def obtener_rubros_y_productos(worksheet):
 
         # Productos
         rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
-        valores_productos = obtener_rango_disjunto(worksheet, rangos_productos)
+        valores_productos = obtener_rango_disjunto(worksheet_inicio, rangos_productos)
         productos = {}
         index = 0
         for key in PRODUCTOS_RANGES.keys():
