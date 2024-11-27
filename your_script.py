@@ -55,9 +55,9 @@ FECHAS_RANGE = 'C6:C7'
 
 # Rangos de Palabras Clave
 PALABRAS_CLAVE_RANGES = {
-    'C': 'C27:C32',
-    'F': 'F27:F35',
-    'I': 'I27:I34'
+    'C': 'C27:C36',
+    'F': 'F27:F36',
+    'I': 'I27:I36'
 }
 
 # Rangos de Rubros y Productos
