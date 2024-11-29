@@ -859,8 +859,8 @@ def procesar_licitaciones_y_generar_ranking(
         df_no_relativos = df_no_relativos.applymap(
             lambda x: float(x) if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit()) else x
         )
-        data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
-        data_no_relativos = [[str(x).replace("'", "") for x in row] for row in data_no_relativos]
+        # Eliminar cualquier apóstrofe o formato no deseado en las celdas
+        data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.astype(str).replace("'", "", regex=True).values.tolist()
 
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
