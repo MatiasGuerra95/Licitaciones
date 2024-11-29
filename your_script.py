@@ -386,85 +386,35 @@ def obtener_rango_disjunto(worksheet, rangos):
 # -------------------------- Funciones de Calculo de Puntajes --------------------------
 
 def calcular_puntaje_palabra(row, palabras_clave, lista_negra):
-    """
-    Calcula el puntaje basado en la presencia de palabras clave en el nombre y la descripción de la licitación,
-    excluyendo palabras de la lista negra.
-
-    Args:
-        row (pd.Series): Una fila del DataFrame representando una licitación.
-        palabras_clave (set): Conjunto de palabras clave a buscar.
-        lista_negra (set): Conjunto de palabras para excluir.
-
-    Returns:
-        int: El puntaje calculado basado en palabras clave.
-    """
     try:
         nombre = eliminar_tildes_y_normalizar(row['Nombre']) if pd.notnull(row['Nombre']) else ''
         descripcion = eliminar_tildes_y_normalizar(row['Descripcion']) if pd.notnull(row['Descripcion']) else ''
-        puntaje_palabra = 0
-
-        # Combinar nombre y descripción
-        texto = f"{nombre} {descripcion}"
-
-        # Tokenizar el texto
-        palabras_texto = set(re.findall(r'\b\w+\b', texto))
-
-        # Excluir palabras de la lista negra
-        palabras_texto = palabras_texto - lista_negra
-
-        # Calcular intersección con palabras clave
+        texto_completo = f"{nombre} {descripcion}"
+        palabras_texto = set(re.findall(r'\b\w+\b', texto_completo)) - lista_negra
         palabras_encontradas = palabras_clave.intersection(palabras_texto)
-        puntaje_palabra += len(palabras_encontradas) * 10  # +10 por cada palabra clave encontrada
-
-        for palabra in palabras_encontradas:
-            logging.info(f"Palabra clave '{palabra}' encontrada en la licitación.")
-
-        logging.debug(f"Puntaje calculado para palabras clave: {puntaje_palabra}")
-        return puntaje_palabra
+        return len(palabras_encontradas) * 10  # +10 por cada palabra clave encontrada
     except Exception as e:
         logging.error(f"Error al calcular puntaje por palabra clave: {e}", exc_info=True)
         return 0
 
 def calcular_puntaje_rubro(row, rubros_y_productos):
-    """
-    Calcula el puntaje basado en rubros y productos.
-    Asigna +5 si se encuentra el rubro.
-    Asigna +10 adicional si se encuentra el producto asociado al rubro.
-
-    Args:
-        row (pd.Series): Una fila del DataFrame representando una licitación.
-        rubros_y_productos (dict): Diccionario mapeando rubros a productos.
-
-    Returns:
-        int: El puntaje calculado.
-    """
     try:
         rubro_column = eliminar_tildes_y_normalizar(row['Rubro3']) if pd.notnull(row['Rubro3']) else ''
         productos_column = eliminar_tildes_y_normalizar(row['CodigoProductoONU']) if pd.notnull(row['CodigoProductoONU']) else ''
         puntaje_rubro = 0
-
-        logging.debug(f"Evaluando fila: Rubro='{rubro_column}', CodigoProducto='{productos_column}'")
-
         rubros_presentes = set()
         productos_presentes = set()
 
         for rubro, productos in rubros_y_productos.items():
             if rubro in rubro_column:
                 rubros_presentes.add(rubro)
-                logging.info(f"Rubro encontrado: {rubro} en '{rubro_column}'")
+            for producto in productos:
+                if producto in productos_column:
+                    productos_presentes.add(producto)
 
-                for producto in productos:
-                    if producto in productos_column:
-                        productos_presentes.add(producto)
-                        logging.info(f"Producto encontrado: '{producto}' asociado a rubro '{rubro}'")
+        puntaje_rubro += len(rubros_presentes) * 5  # +5 por rubro
+        puntaje_rubro += len(productos_presentes) * 10  # +10 por producto
 
-        if not rubros_presentes and not productos_presentes:
-            logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni CodigoProductoONU='{productos_column}'.")
-
-        puntaje_rubro += len(rubros_presentes) * 5
-        puntaje_rubro += len(productos_presentes) * 10
-
-        logging.debug(f"Puntaje calculado para rubros: {puntaje_rubro}")
         return puntaje_rubro
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
@@ -734,20 +684,7 @@ def procesar_licitaciones_y_generar_ranking(
     worksheet_lista_negra,
     worksheet_sicep
 ):
-    """
-    Procesa los datos de licitaciones y genera un ranking basado en varios criterios.
 
-    Args:
-        worksheet_inicio (gspread.Worksheet): Hoja 1 con configuraciones iniciales.
-        worksheet_ranking (gspread.Worksheet): Hoja 2 para subir el ranking final.
-        worksheet_seleccion (gspread.Worksheet): Hoja 3 con licitaciones seleccionadas.
-        worksheet_rubros (gspread.Worksheet): Hoja 4 con datos de rubros.
-        worksheet_clientes (gspread.Worksheet): Hoja 6 con datos de clientes.
-        worksheet_licitaciones_activas (gspread.Worksheet): Hoja 7 con licitaciones activas.
-        worksheet_ranking_no_relativo (gspread.Worksheet): Hoja 8 para subir puntajes no relativos.
-        worksheet_lista_negra (gspread.Worksheet): Hoja 10 con palabras de la lista negra.
-        worksheet_sicep (gspread.Worksheet): Hoja 11 con licitaciones de Sicep.
-    """
     try:
         # Extraer fechas mínimas de la Hoja 1
         valores_fechas = obtener_rango_hoja(worksheet_inicio, FECHAS_RANGE)
