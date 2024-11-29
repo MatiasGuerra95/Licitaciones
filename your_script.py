@@ -862,8 +862,8 @@ def procesar_licitaciones_y_generar_ranking(
         # Crear estructura para Hoja 2
         df_final = df_top_100[[
             '#', 'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Link', 
-            'Puntaje Relativo Rubro', 'Puntaje Relativo Palabra', 
-            'Puntaje Relativo Monto', 'Puntaje Relativo Clientes', 'Puntaje Final'
+            'Rubro', 'Palabra', 
+            'Monto', 'Clientes', 'Puntaje Final'
         ]]
 
         # Renombrar columnas para claridad en Sheets
