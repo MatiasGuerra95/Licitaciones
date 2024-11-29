@@ -872,6 +872,10 @@ def procesar_licitaciones_y_generar_ranking(
         ).head(100)
         logging.info("Top 100 licitaciones seleccionadas.")
 
+        # Eliminar duplicados de 'CodigoExterno' antes de calcular el ranking relativo
+        df_top_100 = df_top_100.drop_duplicates(subset='CodigoExterno').head(100)
+        logging.info("Top 100 licitaciones seleccionadas y duplicados eliminados.")
+
         # Calcular totales para cada criterio dentro del Top 100
         total_rubro = df_top_100['Puntaje Rubro'].sum()
         total_palabra = df_top_100['Puntaje Palabra'].sum()
