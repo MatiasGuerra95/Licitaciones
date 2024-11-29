@@ -765,11 +765,10 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Fecha mínima de publicación: {fecha_min_publicacion}")
         logging.info(f"Fecha mínima de cierre: {fecha_min_cierre}")
 
-        # -------------- Eliminar Licitaciones Seleccionadas --------------
-        # Llamar a la función para eliminar licitaciones seleccionadas antes de procesar
+        # Eliminar Licitaciones Seleccionadas
         eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
 
-        # Volver a obtener las licitaciones activas después de la eliminación
+        # Obtener licitaciones activas después de la eliminación
         licitaciones_actualizadas = worksheet_licitaciones_activas.get_all_values()
         if not licitaciones_actualizadas or len(licitaciones_actualizadas) < 2:
             logging.warning("No hay licitaciones activas después de la eliminación.")
@@ -778,124 +777,90 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones = pd.DataFrame(licitaciones_actualizadas[1:], columns=licitaciones_actualizadas[0])
         logging.info(f"Total de licitaciones activas después de eliminar seleccionadas: {len(df_licitaciones)}")
 
-        # Eliminar duplicados basándose en 'CodigoExterno'
-        df_licitaciones = df_licitaciones.drop_duplicates(subset='CodigoExterno', keep='first')
-        logging.info(f"Total de licitaciones únicas después de eliminar duplicados: {len(df_licitaciones)}")        
+        # Agrupar licitaciones por 'CodigoExterno' para evitar duplicados de rubros o productos
+        df_licitaciones_agrupado = df_licitaciones.groupby('CodigoExterno').agg({
+            'Nombre': 'first',
+            'Descripcion': lambda x: ' '.join(set(x)),
+            'NombreOrganismo': 'first',
+            'Link': 'first',
+            'Rubro3': lambda x: ' '.join(set(x)),
+            'CodigoProductoONU': lambda x: ' '.join(set(x)),
+            'Tipo': 'first',
+            'CantidadReclamos': 'first',
+            'TiempoDuracionContrato': 'first',
+            'FechaCreacion': 'first',
+            'FechaCierre': 'first'
+        }).reset_index()
 
-        # Normalizar y limpiar las columnas antes de procesar
-        for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
-            if col in df_licitaciones.columns:
-                df_licitaciones[col] = df_licitaciones[col].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
-        
-        if 'CodigoProductoONU' in df_licitaciones.columns:
-            df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: eliminar_tildes_y_normalizar(str(x).split('.')[0]) if pd.notnull(x) else x)
+        logging.info(f"Licencias agrupadas por 'CodigoExterno': {len(df_licitaciones_agrupado)} registros únicos.")
 
-        # Convertir las columnas de fechas a tipo datetime
+        # Convertir fechas a datetime
         for col in ['FechaCreacion', 'FechaCierre']:
-            if col in df_licitaciones.columns:
-                df_licitaciones[col] = pd.to_datetime(df_licitaciones[col], errors='coerce')
+            if col in df_licitaciones_agrupado.columns:
+                df_licitaciones_agrupado[col] = pd.to_datetime(df_licitaciones_agrupado[col], errors='coerce')
 
-        # Filtrar por fechas de publicación y cierre
-        df_licitaciones = df_licitaciones[
-            (df_licitaciones['FechaCreacion'] >= fecha_min_publicacion) &
-            (df_licitaciones['FechaCierre'] >= fecha_min_cierre)
+        # Filtrar por fechas mínimas
+        df_licitaciones_agrupado = df_licitaciones_agrupado[
+            (df_licitaciones_agrupado['FechaCreacion'] >= fecha_min_publicacion) &
+            (df_licitaciones_agrupado['FechaCierre'] >= fecha_min_cierre)
         ]
-        logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_licitaciones)}")
+        logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_licitaciones_agrupado)}")
 
-        # -------------- Filtrar Licitaciones de Organizaciones de Salud (Vectorizado) --------------
-
-        # Crear un patrón regex para los términos de exclusión
-        patron_exclusion = '|'.join([re.escape(termino.lower()) for termino in SALUD_EXCLUIR])
-
-        # Normalizar 'NombreOrganismo' para el filtro
-        df_licitaciones['NombreOrganismo_normalizado'] = df_licitaciones['NombreOrganismo'].astype(str).apply(lambda x: eliminar_tildes_y_normalizar(x))
-
-        # Aplicar el filtro utilizando str.contains con case insensitivity
-        df_filtrado_salud = df_licitaciones[
-            df_licitaciones['NombreOrganismo_normalizado'].str.contains(patron_exclusion, case=False, na=False)
-        ]
-        num_filtradas_salud = len(df_filtrado_salud)
-        df_licitaciones = df_licitaciones[
-            ~df_licitaciones['NombreOrganismo_normalizado'].str.contains(patron_exclusion, case=False, na=False)
-        ]
-        logging.info(f"Total de licitaciones después de excluir organizaciones de salud: {len(df_licitaciones)}")
-        logging.info(f"Total de licitaciones filtradas por salud: {num_filtradas_salud}")
-
-        # Continuar con el cálculo de puntajes y generación del ranking...
-
-        # Calcular puntajes
+        # Obtener datos y configuraciones para cálculos
         palabras_clave = obtener_palabras_clave(worksheet_inicio)
         lista_negra = obtener_lista_negra(worksheet_lista_negra)
         rubros_y_productos = obtener_rubros_y_productos(worksheet_inicio)
         puntaje_clientes = obtener_puntaje_clientes(worksheet_clientes)
         ponderaciones = obtener_ponderaciones(worksheet_inicio)
 
-        df_licitaciones['Puntaje Palabra'] = df_licitaciones.apply(
+        # Calcular puntajes
+        df_licitaciones_agrupado['Puntaje Palabra'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_palabra(row, palabras_clave, lista_negra), axis=1
         )
-        df_licitaciones['Puntaje Rubro'] = df_licitaciones.apply(
+        df_licitaciones_agrupado['Puntaje Rubro'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_rubro(row, rubros_y_productos), axis=1
         )
-        df_licitaciones['Puntaje Monto'] = df_licitaciones.apply(
+        df_licitaciones_agrupado['Puntaje Monto'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_monto(row['Tipo'], row['TiempoDuracionContrato']), axis=1
         )
-        df_licitaciones['Puntaje Clientes'] = df_licitaciones['NombreOrganismo'].apply(
+        df_licitaciones_agrupado['Puntaje Clientes'] = df_licitaciones_agrupado['NombreOrganismo'].apply(
             lambda cliente: calcular_puntaje_clientes(cliente, puntaje_clientes)
         )
-
-        # Calcular puntaje total
-        df_licitaciones['Puntaje Total'] = (
-            df_licitaciones['Puntaje Rubro'] +
-            df_licitaciones['Puntaje Palabra'] +
-            df_licitaciones['Puntaje Monto'] +
-            df_licitaciones['Puntaje Clientes']
+        df_licitaciones_agrupado['Puntaje Total'] = (
+            df_licitaciones_agrupado['Puntaje Rubro'] +
+            df_licitaciones_agrupado['Puntaje Palabra'] +
+            df_licitaciones_agrupado['Puntaje Monto'] +
+            df_licitaciones_agrupado['Puntaje Clientes']
         )
-        logging.info("Puntaje total calculado.")
+        logging.info("Puntajes calculados tras consolidar datos.")
 
-        # Guardar puntajes NO relativos en Hoja 8
-        df_no_relativos = df_licitaciones[
-            ['CodigoExterno', 'Nombre', 'NombreOrganismo', 
-             'Puntaje Rubro', 'Puntaje Palabra', 
-             'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
-        ]
-
-        # Convertir a números y limpiar formatos incorrectos
-        df_no_relativos = df_no_relativos.applymap(
-            lambda x: float(x) if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit()) else x
-        )
+        # Guardar puntajes no relativos en Hoja 8
+        df_no_relativos = df_licitaciones_agrupado[[
+            'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Puntaje Rubro',
+            'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total'
+        ]]
         data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
-        data_no_relativos = [[str(x).replace("'", "") for x in row] for row in data_no_relativos]
-
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
-        logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
+        logging.info("Puntajes no relativos subidos a la Hoja 8.")
 
         # Seleccionar Top 100 licitaciones
-        df_top_100 = df_licitaciones.sort_values(
-            by=['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes'], 
-            ascending=False
+        df_top_100 = df_licitaciones_agrupado.sort_values(
+            by=['Puntaje Total'], ascending=False
         ).head(100)
-        logging.info("Top 100 licitaciones seleccionadas.")
+        logging.info(f"Seleccionadas las top 100 licitaciones: {len(df_top_100)} registros.")
 
-        # Eliminar duplicados de 'CodigoExterno' antes de calcular el ranking relativo
-        df_top_100 = df_top_100.drop_duplicates(subset='CodigoExterno').head(100)
-        logging.info("Top 100 licitaciones seleccionadas y duplicados eliminados.")
-
-        # Calcular totales para cada criterio dentro del Top 100
+        # Calcular puntajes relativos
         total_rubro = df_top_100['Puntaje Rubro'].sum()
         total_palabra = df_top_100['Puntaje Palabra'].sum()
         total_monto = df_top_100['Puntaje Monto'].sum()
         total_clientes = df_top_100['Puntaje Clientes'].sum()
-        logging.info("Totales calculados para cada criterio dentro del Top 100.")
 
-        # Ajustar puntajes relativos para que sumen 100
         df_top_100['Puntaje Relativo Rubro'] = (df_top_100['Puntaje Rubro'] / total_rubro * 100) if total_rubro > 0 else 0
         df_top_100['Puntaje Relativo Palabra'] = (df_top_100['Puntaje Palabra'] / total_palabra * 100) if total_palabra > 0 else 0
         df_top_100['Puntaje Relativo Monto'] = (df_top_100['Puntaje Monto'] / total_monto * 100) if total_monto > 0 else 0
         df_top_100['Puntaje Relativo Clientes'] = (df_top_100['Puntaje Clientes'] / total_clientes * 100) if total_clientes > 0 else 0
-        logging.info("Puntajes relativos ajustados para que sumen 100.")
 
-        # Calcular 'Puntaje Total SUMAPRODUCTO'
-        df_top_100['Puntaje Total SUMAPRODUCTO'] = (
+        df_top_100['Puntaje Final'] = (
             df_top_100['Puntaje Relativo Rubro'] * ponderaciones.get('Puntaje Rubro', 0) +
             df_top_100['Puntaje Relativo Palabra'] * ponderaciones.get('Puntaje Palabra', 0) +
             df_top_100['Puntaje Relativo Monto'] * ponderaciones.get('Puntaje Monto', 0) +
@@ -903,9 +868,9 @@ def procesar_licitaciones_y_generar_ranking(
         )
         logging.info("Puntaje Total SUMAPRODUCTO calculado.")
 
-        # Ordenar Top 100 por 'Puntaje Total SUMAPRODUCTO'
-        df_top_100 = df_top_100.sort_values(by='Puntaje Total SUMAPRODUCTO', ascending=False)
-        logging.info("Top 100 licitaciones ordenadas por 'Puntaje Total SUMAPRODUCTO'.")
+        # Ordenar Top 100 por 'Puntaje Final'
+        df_top_100 = df_top_100.sort_values(by='Puntaje Final', ascending=False)
+        logging.info("Top 100 licitaciones ordenadas por 'Puntaje Final'.")
 
         # Crear estructura para Hoja 2
         df_top_100['#'] = range(1, len(df_top_100) + 1)
@@ -914,18 +879,19 @@ def procesar_licitaciones_y_generar_ranking(
             'Puntaje Relativo Palabra': 'Palabra',
             'Puntaje Relativo Monto': 'Monto',
             'Puntaje Relativo Clientes': 'Clientes',
-            'Puntaje Total SUMAPRODUCTO': 'Puntaje Final'
+            'Puntaje Final': 'Puntaje Total'
         })
 
         df_final = df_top_100[[
             '#', 'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Link', 
-            'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
+            'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Total'
         ]]
 
         # Asegurar formato correcto de decimales
-        for col in ['Palabra', 'Monto', 'Puntaje Final']:
+        for col in ['Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Total']:
             df_final[col] = df_final[col].astype(float).round(2)
 
+        # Preparar datos para subir al Google Sheets
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
         data_final = [[str(x).replace("'", "") if isinstance(x, str) else x for x in row] for row in data_final]
 
@@ -944,6 +910,8 @@ def procesar_licitaciones_y_generar_ranking(
     except Exception as e:
         logging.error(f"Error en procesar_licitaciones_y_generar_ranking: {e}", exc_info=True)
         raise
+
+
 
 
 # -------------------------- Función Principal --------------------------
