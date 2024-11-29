@@ -855,6 +855,11 @@ def procesar_licitaciones_y_generar_ranking(
              'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
         ]
 
+        # Asegurarnos de que los valores sean numéricos donde corresponde
+        for col in ['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']:
+            if col in df_no_relativos.columns:
+                df_no_relativos[col] = pd.to_numeric(df_no_relativos[col], errors='coerce')
+
         # Convertir a números y limpiar formatos incorrectos
         df_no_relativos = df_no_relativos.applymap(
             lambda x: float(x) if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit()) else x
