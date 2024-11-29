@@ -788,25 +788,30 @@ def procesar_licitaciones_y_generar_ranking(
         # Guardar puntajes NO relativos en Hoja 8
         df_no_relativos = df_licitaciones[
             ['CodigoExterno', 'Nombre', 'NombreOrganismo', 
-             'Puntaje Rubro', 'Puntaje Palabra', 
-             'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
+            'Puntaje Rubro', 'Puntaje Palabra', 
+            'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
         ]
 
-        # Convertir a números y limpiar formatos incorrectos
-        df_no_relativos = df_no_relativos.applymap(
-            lambda x: float(x) if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit()) else x
-        )
-        data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
-        data_no_relativos = [[str(x).replace("'", "") for x in row] for row in data_no_relativos]
+        # Asegurar que las columnas numéricas son de tipo float
+        numerical_columns = ['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
+        df_no_relativos[numerical_columns] = df_no_relativos[numerical_columns].apply(pd.to_numeric, errors='coerce').fillna(0)
 
+        # Convertir solo las columnas de texto a cadenas, mantener las numéricas como están
+        text_columns = ['CodigoExterno', 'Nombre', 'NombreOrganismo']
+        df_no_relativos[text_columns] = df_no_relativos[text_columns].astype(str)
+
+        # Preparar los datos para subir sin convertir los numéricos a string
+        data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
+
+        # Subir los datos a Google Sheets sin convertir los numéricos a cadenas
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
-
+        
         # Seleccionar Top 100 licitaciones
         df_top_100 = df_licitaciones.sort_values(
-            by=['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes'], 
+            by=['Puntaje Total No Relativo'], 
             ascending=False
-        ).head(100)
+        ).head(100).copy()
         logging.info("Top 100 licitaciones seleccionadas.")
 
         # Calcular totales para cada criterio dentro del Top 100
@@ -816,25 +821,33 @@ def procesar_licitaciones_y_generar_ranking(
         total_clientes = df_top_100['Puntaje Clientes'].sum()
         logging.info("Totales calculados para cada criterio dentro del Top 100.")
 
-        # Ajustar puntajes relativos para que sumen 100
-        df_top_100['Puntaje Relativo Rubro'] = (df_top_100['Puntaje Rubro'] / total_rubro * 100) if total_rubro > 0 else 0
-        df_top_100['Puntaje Relativo Palabra'] = (df_top_100['Puntaje Palabra'] / total_palabra * 100) if total_palabra > 0 else 0
-        df_top_100['Puntaje Relativo Monto'] = (df_top_100['Puntaje Monto'] / total_monto * 100) if total_monto > 0 else 0
-        df_top_100['Puntaje Relativo Clientes'] = (df_top_100['Puntaje Clientes'] / total_clientes * 100) if total_clientes > 0 else 0
-        logging.info("Puntajes relativos ajustados para que sumen 100.")
+        # Calcular Puntajes Relativos
+        df_top_100['Puntaje Relativo Rubro'] = df_top_100['Puntaje Rubro'].apply(
+            lambda x: (x / total_rubro * 100) if total_rubro > 0 else 0
+        )
+        df_top_100['Puntaje Relativo Palabra'] = df_top_100['Puntaje Palabra'].apply(
+            lambda x: (x / total_palabra * 100) if total_palabra > 0 else 0
+        )
+        df_top_100['Puntaje Relativo Monto'] = df_top_100['Puntaje Monto'].apply(
+            lambda x: (x / total_monto * 100) if total_monto > 0 else 0
+        )
+        df_top_100['Puntaje Relativo Clientes'] = df_top_100['Puntaje Clientes'].apply(
+            lambda x: (x / total_clientes * 100) if total_clientes > 0 else 0
+        )
+        logging.info("Puntajes relativos calculados para las 100 mejores licitaciones.")
 
-        # Calcular 'Puntaje Total SUMAPRODUCTO'
-        df_top_100['Puntaje Total SUMAPRODUCTO'] = (
+        # Calcular el Puntaje Final SUMPRODUCTO
+        df_top_100['Puntaje Final'] = (
             df_top_100['Puntaje Relativo Rubro'] * ponderaciones.get('Puntaje Rubro', 0) +
             df_top_100['Puntaje Relativo Palabra'] * ponderaciones.get('Puntaje Palabra', 0) +
             df_top_100['Puntaje Relativo Monto'] * ponderaciones.get('Puntaje Monto', 0) +
             df_top_100['Puntaje Relativo Clientes'] * ponderaciones.get('Puntaje Clientes', 0)
         )
-        logging.info("Puntaje Total SUMAPRODUCTO calculado.")
+        logging.info("Puntaje final calculado para las 100 mejores licitaciones.")
 
-        # Ordenar Top 100 por 'Puntaje Total SUMAPRODUCTO'
-        df_top_100 = df_top_100.sort_values(by='Puntaje Total SUMAPRODUCTO', ascending=False)
-        logging.info("Top 100 licitaciones ordenadas por 'Puntaje Total SUMAPRODUCTO'.")
+        # Ordenar por Puntaje Final
+        df_top_100 = df_top_100.sort_values(by='Puntaje Final', ascending=False).reset_index(drop=True)
+        df_top_100['#'] = df_top_100.index + 1  # Agregar columna de ranking
 
         # Crear estructura para Hoja 2
         df_top_100['#'] = range(1, len(df_top_100) + 1)
@@ -846,17 +859,32 @@ def procesar_licitaciones_y_generar_ranking(
             'Puntaje Total SUMAPRODUCTO': 'Puntaje Final'
         })
 
+        # Crear estructura para Hoja 2
         df_final = df_top_100[[
             '#', 'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Link', 
-            'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
+            'Puntaje Relativo Rubro', 'Puntaje Relativo Palabra', 
+            'Puntaje Relativo Monto', 'Puntaje Relativo Clientes', 'Puntaje Final'
         ]]
 
-        # Asegurar formato correcto de decimales
-        for col in ['Palabra', 'Monto', 'Puntaje Final']:
-            df_final[col] = df_final[col].astype(float).round(2)
+        # Renombrar columnas para claridad en Sheets
+        df_final = df_final.rename(columns={
+            'Puntaje Relativo Rubro': 'Rubro',
+            'Puntaje Relativo Palabra': 'Palabra',
+            'Puntaje Relativo Monto': 'Monto',
+            'Puntaje Relativo Clientes': 'Clientes',
+            'Puntaje Final': 'Puntaje Final'
+        })        
 
+        # Asegurar formato correcto de decimales para columnas numéricas
+        numerical_final_columns = ['Palabra', 'Monto', 'Puntaje Final']
+        df_final[numerical_final_columns] = df_final[numerical_final_columns].astype(float).round(2)
+
+        # Convertir solo las columnas de texto a cadenas, mantener las numéricas como están
+        text_final_columns = ['#', 'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Link']
+        df_final[text_final_columns] = df_final[text_final_columns].astype(str)
+
+        # Preparar los datos para subir sin convertir los numéricos a string
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
-        data_final = [[str(x).replace("'", "") if isinstance(x, str) else x for x in row] for row in data_final]
 
         # Preservar el valor de la celda A1 en Hoja 2
         nombre_a1 = worksheet_ranking.acell('A1').value if worksheet_ranking.acell('A1').value else ""
@@ -866,9 +894,10 @@ def procesar_licitaciones_y_generar_ranking(
         worksheet_ranking.update('A1', [[nombre_a1]])
         logging.info("Hoja 2 limpiada y A1 restaurado.")
 
-        # Subir el ranking final a Hoja 2
+        # Subir el ranking final (Top 100) a Google Sheets sin convertir los numéricos a cadenas
         actualizar_hoja(worksheet_ranking, 'A3', data_final)
         logging.info("Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.")
+
 
     except Exception as e:
         logging.error(f"Error en procesar_licitaciones_y_generar_ranking: {e}", exc_info=True)
