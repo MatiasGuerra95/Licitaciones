@@ -809,7 +809,7 @@ def procesar_licitaciones_y_generar_ranking(
         
         # Seleccionar Top 100 licitaciones
         df_top_100 = df_licitaciones.sort_values(
-            by=['Puntaje Total No Relativo'], 
+            by=['Puntaje Total'], 
             ascending=False
         ).head(100).copy()
         logging.info("Top 100 licitaciones seleccionadas.")
