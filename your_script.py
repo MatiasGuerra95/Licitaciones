@@ -855,18 +855,20 @@ def procesar_licitaciones_y_generar_ranking(
              'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
         ]
 
-        # Asegurarnos de que los valores sean numéricos donde corresponde
-        for col in ['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']:
-            if col in df_no_relativos.columns:
-                df_no_relativos[col] = pd.to_numeric(df_no_relativos[col], errors='coerce')
+        # Definir columnas de texto y numéricas
+        text_columns = ['CodigoExterno', 'Nombre', 'NombreOrganismo']
+        numeric_columns = ['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
 
-        # Convertir a números y limpiar formatos incorrectos
-        df_no_relativos = df_no_relativos.applymap(
-            lambda x: float(x) if isinstance(x, (int, float)) or (isinstance(x, str) and x.replace('.', '', 1).isdigit()) else x
-        )
-        # Eliminar cualquier apóstrofe o formato no deseado en las celdas
-        data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.astype(str).replace("'", "", regex=True).values.tolist()
+        # Convertir solo las columnas de texto a cadenas
+        df_no_relativos.loc[:, text_columns] = df_no_relativos[text_columns].astype(str)
 
+        # Asegurarse de que las columnas numéricas son de tipo float
+        df_no_relativos.loc[:, numeric_columns] = df_no_relativos[numeric_columns].apply(pd.to_numeric, errors='coerce').fillna(0)
+
+        # Preparar los datos para subir sin convertir los numéricos a string
+        data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
+
+        # Subir los datos a Google Sheets
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
 
