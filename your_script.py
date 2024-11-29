@@ -778,6 +778,10 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones = pd.DataFrame(licitaciones_actualizadas[1:], columns=licitaciones_actualizadas[0])
         logging.info(f"Total de licitaciones activas después de eliminar seleccionadas: {len(df_licitaciones)}")
 
+        # Eliminar duplicados basándose en 'CodigoExterno'
+        df_licitaciones = df_licitaciones.drop_duplicates(subset='CodigoExterno', keep='first')
+        logging.info(f"Total de licitaciones únicas después de eliminar duplicados: {len(df_licitaciones)}")        
+
         # Normalizar y limpiar las columnas antes de procesar
         for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
             if col in df_licitaciones.columns:
