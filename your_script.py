@@ -856,7 +856,7 @@ def procesar_licitaciones_y_generar_ranking(
             'Puntaje Relativo Palabra': 'Palabra',
             'Puntaje Relativo Monto': 'Monto',
             'Puntaje Relativo Clientes': 'Clientes',
-            'Puntaje Total SUMAPRODUCTO': 'Puntaje Final'
+            'Puntaje Final': 'Puntaje Final'
         })
 
         # Crear estructura para Hoja 2
@@ -876,7 +876,7 @@ def procesar_licitaciones_y_generar_ranking(
         })        
 
         # Asegurar formato correcto de decimales para columnas numéricas
-        numerical_final_columns = ['Palabra', 'Monto', 'Puntaje Final']
+        numerical_final_columns = ['Rubro', 'Palabra', 'Monto','Clientes' ,'Puntaje Final']
         df_final[numerical_final_columns] = df_final[numerical_final_columns].astype(float).round(2)
 
         # Convertir solo las columnas de texto a cadenas, mantener las numéricas como están
