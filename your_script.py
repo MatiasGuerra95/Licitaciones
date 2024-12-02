@@ -756,7 +756,7 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Total de licitaciones activas después de eliminar seleccionadas: {len(df_licitaciones)}")
 
         # Normalize and clean columns before processing
-        for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
+        for col in ['CodigoExterno','Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
             if col in df_licitaciones.columns:
                 df_licitaciones[col] = df_licitaciones[col].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
         
@@ -1051,7 +1051,7 @@ def generar_ranking(
         ponderaciones (dict): A dictionary containing ponderaciones.
     """
     try:
-        # Load licitaciones from Hoja 7
+        # Cargar licitaciones desde Hoja 7
         licitaciones = worksheet_licitaciones_activas.get_all_values()
         if not licitaciones or len(licitaciones) < 2:
             logging.warning("No hay licitaciones en la Hoja 7 para procesar.")
@@ -1064,12 +1064,12 @@ def generar_ranking(
         df_licitaciones = df_licitaciones[df_licitaciones['TiempoDuracionContrato'] != '0']
         logging.info(f"Filtradas licitaciones con 'TiempoDuracionContrato' != 0. Total: {len(df_licitaciones)}")
 
-        # Exclude health-related organizations
+        # Excluir organizaciones de salud
         regex_excluir = re.compile('|'.join(SALUD_EXCLUIR), re.IGNORECASE)
         df_licitaciones = df_licitaciones[~df_licitaciones['NombreOrganismo'].str.contains(regex_excluir, na=False)]
         logging.info(f"Filtradas licitaciones relacionadas con salud. Total: {len(df_licitaciones)}")
 
-        # Group by 'CodigoExterno'
+        # Agrupar por 'CodigoExterno' y sumarizar
         df_licitaciones_agrupado = df_licitaciones.groupby('CodigoExterno').agg({
             'Nombre': 'first',
             'NombreOrganismo': 'first',
@@ -1083,7 +1083,7 @@ def generar_ranking(
         }).reset_index()
         logging.info(f"Licitaciones agrupadas por 'CodigoExterno'. Total: {len(df_licitaciones_agrupado)}")
 
-        # Calculate scores
+        # Calcular puntajes
         df_licitaciones_agrupado['Puntaje Palabra'] = df_licitaciones_agrupado.apply(
             lambda row: calcular_puntaje_palabra(row, palabras_clave_set, lista_negra), axis=1
         )
@@ -1104,7 +1104,7 @@ def generar_ranking(
         )
         logging.info("Puntaje por clientes calculado.")
 
-        # Calculate total score
+        # Calcular puntaje total
         df_licitaciones_agrupado['Puntaje Total'] = (
             df_licitaciones_agrupado['Puntaje Rubro'] +
             df_licitaciones_agrupado['Puntaje Palabra'] +
@@ -1113,51 +1113,52 @@ def generar_ranking(
         )
         logging.info("Puntaje total calculado.")
 
-        # Save non-relative scores to Hoja 8
+        # Guardar puntajes NO relativos en Hoja 8
         df_no_relativos = df_licitaciones_agrupado[
             ['CodigoExterno', 'Nombre', 'NombreOrganismo', 'Puntaje Rubro', 
              'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
         ].copy()
 
+        # Convertir a lista de listas y serializar
         data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
         data_no_relativos = [
             [serialize_value(x) for x in row]
             for row in data_no_relativos
         ]
 
-        # Clear Hoja 8 before uploading
+        # Limpiar Hoja 8 antes de subir
         worksheet_ranking_no_relativo.clear()
         logging.info("Hoja 8 (Ranking no relativo) limpiada exitosamente.")        
 
-        # Upload the data to Google Sheets
+        # Subir los datos a Google Sheets
         actualizar_hoja(worksheet_ranking_no_relativo, 'A1', data_no_relativos)
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
 
-        # Select Top 100 licitaciones
-        df_top_100 = df_licitaciones_agrupado.sort_values(
-            by=['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes'], 
+        # -------------- Seleccionar Top 100 Licitaciones Únicas --------------
+
+        # Ordenar licitaciones agrupadas por 'Puntaje Total' de manera descendente
+        df_licitaciones_agrupado_sorted = df_licitaciones_agrupado.sort_values(
+            by='Puntaje Total',
             ascending=False
-        ).head(100)
-        logging.info("Top 100 licitaciones seleccionadas.")
+        )
+        logging.info("Licitaciones ordenadas por 'Puntaje Total' de manera descendente.")
 
-        # Verificar y eliminar duplicados basados en 'CodigoExterno'
-        initial_count = len(df_top_100)
-        df_top_100 = df_top_100.sort_values(by='Puntaje Total').drop_duplicates(subset='CodigoExterno', keep='first').head(100)
-        final_count = len(df_top_100)
-        duplicates_removed = initial_count - final_count
-        if duplicates_removed > 0:
-            logging.info(f"Se eliminaron {duplicates_removed} licitaciones duplicadas del Top 100.")
-        else:
-            logging.info("No se encontraron duplicados en el Top 100 licitaciones.")        
+        # Eliminar duplicados basados en 'CodigoExterno', manteniendo la primera ocurrencia (mayor puntaje)
+        df_unique = df_licitaciones_agrupado_sorted.drop_duplicates(subset='CodigoExterno', keep='first')
+        logging.info(f"Licitaciones después de eliminar duplicados: {len(df_unique)}")
 
-        # Calculate totals for each criterion
+        # Seleccionar las Top 100 licitaciones únicas
+        df_top_100 = df_unique.head(100)
+        logging.info("Top 100 licitaciones únicas seleccionadas.")
+
+        # Calcular totales para cada criterio dentro del Top 100
         total_rubro = df_top_100['Puntaje Rubro'].sum()
         total_palabra = df_top_100['Puntaje Palabra'].sum()
         total_monto = df_top_100['Puntaje Monto'].sum()
         total_clientes = df_top_100['Puntaje Clientes'].sum()
         logging.info("Totales calculados para cada criterio dentro del Top 100.")
 
-        # Adjust relative scores to sum to 100
+        # Ajustar puntajes relativos para que sumen 100
         df_top_100['Puntaje Relativo Rubro'] = df_top_100['Puntaje Rubro'].apply(
             lambda x: (x / total_rubro * 100) if total_rubro > 0 else 0
         )
@@ -1172,7 +1173,7 @@ def generar_ranking(
         )
         logging.info("Puntajes relativos ajustados para que sumen 100.")
 
-        # Calculate 'Puntaje Total SUMAPRODUCTO'
+        # Calcular 'Puntaje Total SUMAPRODUCTO'
         df_top_100['Puntaje Total SUMAPRODUCTO'] = (
             df_top_100['Puntaje Relativo Rubro'] * ponderaciones.get('Puntaje Rubro', 0) +
             df_top_100['Puntaje Relativo Palabra'] * ponderaciones.get('Puntaje Palabra', 0) +
