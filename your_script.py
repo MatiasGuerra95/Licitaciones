@@ -770,6 +770,52 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Fecha mínima de publicación: {fecha_min_publicacion}")
         logging.info(f"Fecha mínima de cierre: {fecha_min_cierre}")
 
+        # -------------- Descargar y Cargar Nuevas Licitaciones --------------
+        logging.info("Iniciando descarga y carga de nuevas licitaciones.")
+
+        # Descargar licitaciones desde la URL
+        df_nuevas_licitaciones = procesar_licitaciones(LICITACIONES_URL)
+        logging.info(f"Total de nuevas licitaciones descargadas: {len(df_nuevas_licitaciones)}")
+
+        # Filtrar por fechas de publicación y cierre según Hoja 1
+        df_nuevas_licitaciones['FechaCreacion'] = pd.to_datetime(df_nuevas_licitaciones['FechaCreacion'], errors='coerce')
+        df_nuevas_licitaciones['FechaCierre'] = pd.to_datetime(df_nuevas_licitaciones['FechaCierre'], errors='coerce')
+
+        df_nuevas_filtradas = df_nuevas_licitaciones[
+            (df_nuevas_licitaciones['FechaCreacion'] >= fecha_min_publicacion) &
+            (df_nuevas_licitaciones['FechaCierre'] >= fecha_min_cierre)
+        ]
+        logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_nuevas_filtradas)}")
+
+        # Limpiar la Hoja 7 antes de subir nuevos datos
+        worksheet_licitaciones_activas.clear()
+        logging.info("Hoja 7 (Licitaciones MP) limpiada exitosamente.")
+
+        # Preparar datos para subir a Google Sheets
+        # Asegurarse de que todas las columnas necesarias estén presentes
+        columnas_obligatorias = COLUMNAS_IMPORTANTES
+        for columna in columnas_obligatorias:
+            if columna not in df_nuevas_filtradas.columns:
+                df_nuevas_filtradas[columna] = None  # Asigna None si falta la columna
+
+        # Ordenar las columnas según COLUMNAS_IMPORTANTES
+        df_nuevas_filtradas = df_nuevas_filtradas[columnas_obligatorias]
+
+        # Convertir a lista de listas para Google Sheets
+        data_to_upload = [df_nuevas_filtradas.columns.values.tolist()] + df_nuevas_filtraciones_filtradas.values.tolist()
+        # Convertir solo las columnas de texto a strings y mantener numéricas como números
+        data_to_upload = [
+            [
+                str(x) if col in ['CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'Rubro3', 'Nombre producto genrico', 'Link'] else x
+                for col, x in zip(df_nuevas_filtraciones_filtradas.columns, row)
+            ]
+            for row in df_nuevas_filtraciones_filtradas.values.tolist()
+        ]
+
+        # Subir los datos a Hoja 7
+        actualizar_hoja(worksheet_licitaciones_activas, 'A1', data_to_upload)
+        logging.info("Nuevas licitaciones cargadas a la Hoja 7 (Licitaciones MP).")        
+
         # -------------- Eliminar Licitaciones Seleccionadas --------------
         # Llamar a la función para eliminar licitaciones seleccionadas antes de procesar
         eliminar_licitaciones_seleccionadas(worksheet_seleccion, worksheet_licitaciones_activas)
