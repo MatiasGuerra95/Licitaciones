@@ -773,48 +773,85 @@ def procesar_licitaciones_y_generar_ranking(
         # -------------- Descargar y Cargar Nuevas Licitaciones --------------
         logging.info("Iniciando descarga y carga de nuevas licitaciones.")
 
-        # Descargar licitaciones desde la URL
-        df_nuevas_licitaciones = procesar_licitaciones(LICITACIONES_URL)
-        logging.info(f"Total de nuevas licitaciones descargadas: {len(df_nuevas_licitaciones)}")
+        # Construir URLs dinámicamente para mes actual y anterior
+        now = datetime.now()
+        mes_actual = now.month
+        año_actual = now.year
 
-        # Filtrar por fechas de publicación y cierre según Hoja 1
-        df_nuevas_licitaciones['FechaCreacion'] = pd.to_datetime(df_nuevas_licitaciones['FechaCreacion'], errors='coerce')
-        df_nuevas_licitaciones['FechaCierre'] = pd.to_datetime(df_nuevas_licitaciones['FechaCierre'], errors='coerce')
+        if mes_actual == 1:
+            mes_anterior = 12
+            año_anterior = año_actual - 1
+        else:
+            mes_anterior = mes_actual - 1
+            año_anterior = año_actual
 
-        df_nuevas_filtradas = df_nuevas_licitaciones[
-            (df_nuevas_licitaciones['FechaCreacion'] >= fecha_min_publicacion) &
-            (df_nuevas_licitaciones['FechaCierre'] >= fecha_min_cierre)
+        # Construir URLs
+        url_mes_actual = f"{BASE_URL}{año_actual}-{mes_actual:02d}.zip"
+        url_mes_anterior = f"{BASE_URL}{año_anterior}-{mes_anterior:02d}.zip"
+
+        logging.info(f"URL del mes actual: {url_mes_actual}")
+        logging.info(f"URL del mes anterior: {url_mes_anterior}")
+
+        # Descargar licitaciones desde las URLs
+        df_mes_actual = procesar_licitaciones(url_mes_actual)
+        df_mes_anterior = procesar_licitaciones(url_mes_anterior)
+
+        # Integrar licitaciones de SICEP
+        df_sicep = integrar_licitaciones_sicep(worksheet_sicep)
+
+        # Concatenar todos los DataFrames de licitaciones
+        df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
+        logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
+
+        # Eliminar tildes y convertir a minúsculas
+        for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
+            if col in df_licitaciones.columns:
+                df_licitaciones[col] = df_licitaciones[col].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
+        
+        if 'CodigoProductoONU' in df_licitaciones.columns:
+            df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: eliminar_tildes_y_normalizar(str(x).split('.')[0]) if pd.notnull(x) else x)
+
+        # Convertir las columnas de fechas a tipo datetime
+        for col in ['FechaCreacion', 'FechaCierre']:
+            if col in df_licitaciones.columns:
+                df_licitaciones[col] = pd.to_datetime(df_licitaciones[col], errors='coerce')
+
+        # Filtrar por fechas mínimas
+        df_nuevas_filtradas = df_licitaciones[
+            (df_licitaciones['FechaCreacion'] >= fecha_min_publicacion) &
+            (df_licitaciones['FechaCierre'] >= fecha_min_cierre)
         ]
         logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_nuevas_filtradas)}")
 
-        # Limpiar la Hoja 7 antes de subir nuevos datos
-        worksheet_licitaciones_activas.clear()
-        logging.info("Hoja 7 (Licitaciones MP) limpiada exitosamente.")
+        if df_nuevas_filtradas.empty:
+            logging.warning("No hay nuevas licitaciones que cumplan con los criterios de fecha.")
+        else:
+            # Limpiar la Hoja 7 antes de subir nuevos datos
+            worksheet_licitaciones_activas.clear()
+            logging.info("Hoja 7 (Licitaciones MP) limpiada exitosamente.")
 
-        # Preparar datos para subir a Google Sheets
-        # Asegurarse de que todas las columnas necesarias estén presentes
-        columnas_obligatorias = COLUMNAS_IMPORTANTES
-        for columna in columnas_obligatorias:
-            if columna not in df_nuevas_filtradas.columns:
-                df_nuevas_filtradas[columna] = None  # Asigna None si falta la columna
+            # Asegurarse de que todas las columnas necesarias estén presentes
+            for columna in COLUMNAS_IMPORTANTES:
+                if columna not in df_nuevas_filtradas.columns:
+                    df_nuevas_filtradas[columna] = None  # Asigna None si falta la columna
 
-        # Ordenar las columnas según COLUMNAS_IMPORTANTES
-        df_nuevas_filtradas = df_nuevas_filtradas[columnas_obligatorias]
+            # Ordenar las columnas según COLUMNAS_IMPORTANTES
+            df_nuevas_filtradas = df_nuevas_filtradas[COLUMNAS_IMPORTANTES]
 
-        # Convertir a lista de listas para Google Sheets
-        data_to_upload = [df_nuevas_filtradas.columns.values.tolist()] + df_nuevas_filtraciones_filtradas.values.tolist()
-        # Convertir solo las columnas de texto a strings y mantener numéricas como números
-        data_to_upload = [
-            [
-                str(x) if col in ['CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'Rubro3', 'Nombre producto genrico', 'Link'] else x
-                for col, x in zip(df_nuevas_filtraciones_filtradas.columns, row)
+            # Convertir a lista de listas para Google Sheets
+            data_to_upload = [df_nuevas_filtradas.columns.values.tolist()] + df_nuevas_filtradas.values.tolist()
+            # Convertir solo las columnas de texto a strings y mantener numéricas como números
+            data_to_upload = [
+                [
+                    str(x) if col in ['CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'Rubro3', 'Nombre producto genrico', 'Link'] else x
+                    for col, x in zip(df_nuevas_filtradas.columns, row)
+                ]
+                for row in df_nuevas_filtradas.values.tolist()
             ]
-            for row in df_nuevas_filtraciones_filtradas.values.tolist()
-        ]
 
-        # Subir los datos a Hoja 7
-        actualizar_hoja(worksheet_licitaciones_activas, 'A1', data_to_upload)
-        logging.info("Nuevas licitaciones cargadas a la Hoja 7 (Licitaciones MP).")        
+            # Subir los datos a Hoja 7
+            actualizar_hoja(worksheet_licitaciones_activas, 'A1', data_to_upload)
+            logging.info("Nuevas licitaciones cargadas a la Hoja 7 (Licitaciones MP).")       
 
         # -------------- Eliminar Licitaciones Seleccionadas --------------
         # Llamar a la función para eliminar licitaciones seleccionadas antes de procesar
