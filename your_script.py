@@ -70,7 +70,7 @@ PRODUCTOS_RANGES = {
 
 # Column Configuration
 COLUMNAS_IMPORTANTES = [
-    'CodigoExterno', 'Nombre', 'CodigoEstado', 'FechaCreacion', 'FechaCierre',
+    'CodigoExterno', 'Nombre', 'CodigoEstado', 'FechaInicio', 'FechaCierre',
     'Descripcion', 'NombreOrganismo', 'Rubro3', 'Nombre producto genrico',
     'Tipo', 'CantidadReclamos', 'TiempoDuracionContrato', 'Link', 'CodigoProductoONU'
 ]
@@ -580,7 +580,7 @@ def integrar_licitaciones_sicep(worksheet_sicep):
     try:
         df_sicep = login_and_scrape().rename(columns={
             "Titulo": "Nombre",
-            "Fecha de Publicacion": "FechaCreacion",
+            "Fecha de Publicacion": "FechaInicio",
             "Fecha de Cierre": "FechaCierre",
             "Descripcion": "Descripcion",
             "Link": "Link"
@@ -589,7 +589,7 @@ def integrar_licitaciones_sicep(worksheet_sicep):
         # Ensure mandatory columns
         columnas_obligatorias = [
             "CodigoExterno", "Nombre", "Descripcion", "CodigoEstado",
-            "NombreOrganismo", "Tipo", "CantidadReclamos", "FechaCreacion",
+            "NombreOrganismo", "Tipo", "CantidadReclamos", "FechaInicio",
             "FechaCierre", "TiempoDuracionContrato", "Rubro3", "Nombre producto genrico", "Link"
         ]
         for columna in columnas_obligatorias:
@@ -730,13 +730,13 @@ def procesar_licitaciones_y_generar_ranking(
             df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: eliminar_tildes_y_normalizar(str(x).split('.')[0]) if pd.notnull(x) else x)
 
         # Convert date columns to datetime
-        for col in ['FechaCreacion', 'FechaCierre']:
+        for col in ['FechaInicio', 'FechaCierre']:
             if col in df_licitaciones.columns:
                 df_licitaciones[col] = pd.to_datetime(df_licitaciones[col], errors='coerce')
 
         # Filter by minimum dates
         df_nuevas_filtradas = df_licitaciones[
-            (df_licitaciones['FechaCreacion'] >= fecha_min_publicacion) &
+            (df_licitaciones['FechaInicio'] >= fecha_min_publicacion) &
             (df_licitaciones['FechaCierre'] >= fecha_min_cierre)
         ]
         logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_nuevas_filtradas)}")
@@ -795,7 +795,7 @@ def procesar_licitaciones_y_generar_ranking(
             df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: eliminar_tildes_y_normalizar(str(x).split('.')[0]) if pd.notnull(x) else x)
 
         # Convert date columns to datetime
-        for col in ['FechaCreacion', 'FechaCierre']:
+        for col in ['FechaInicio', 'FechaCierre']:
             if col in df_licitaciones.columns:
                 df_licitaciones[col] = pd.to_datetime(df_licitaciones[col], errors='coerce')
 
