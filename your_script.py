@@ -756,7 +756,7 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Total de licitaciones activas después de eliminar seleccionadas: {len(df_licitaciones)}")
 
         # Normalize and clean columns before processing
-        for col in ['CodigoExterno','Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
+        for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
             if col in df_licitaciones.columns:
                 df_licitaciones[col] = df_licitaciones[col].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
         
@@ -1037,19 +1037,6 @@ def generar_ranking(
     puntaje_clientes,
     ponderaciones
 ):
-    """
-    Generates the ranking of licitaciones and uploads the results to Google Sheets.
-
-    Args:
-        worksheet_ranking (gspread.Worksheet): Worksheet to upload the final ranking.
-        worksheet_ranking_no_relativo (gspread.Worksheet): Worksheet to upload non-relative scores.
-        worksheet_licitaciones_activas (gspread.Worksheet): Worksheet containing active licitaciones.
-        palabras_clave_set (set): A set of keyword phrases.
-        lista_negra (set): A set of blacklist phrases.
-        rubros_y_productos (dict): A dictionary mapping rubros to productos.
-        puntaje_clientes (dict): A dictionary mapping clientes to scores.
-        ponderaciones (dict): A dictionary containing ponderaciones.
-    """
     try:
         # Cargar licitaciones desde Hoja 7
         licitaciones = worksheet_licitaciones_activas.get_all_values()
@@ -1060,7 +1047,7 @@ def generar_ranking(
         df_licitaciones = pd.DataFrame(licitaciones[1:], columns=licitaciones[0])
         logging.info(f"Licitaciones cargadas desde la Hoja 7. Total: {len(df_licitaciones)}")
 
-        # Filter 'TiempoDuracionContrato' != 0
+        # Filtrar 'TiempoDuracionContrato' != 0
         df_licitaciones = df_licitaciones[df_licitaciones['TiempoDuracionContrato'] != '0']
         logging.info(f"Filtradas licitaciones con 'TiempoDuracionContrato' != 0. Total: {len(df_licitaciones)}")
 
@@ -1068,6 +1055,23 @@ def generar_ranking(
         regex_excluir = re.compile('|'.join(SALUD_EXCLUIR), re.IGNORECASE)
         df_licitaciones = df_licitaciones[~df_licitaciones['NombreOrganismo'].str.contains(regex_excluir, na=False)]
         logging.info(f"Filtradas licitaciones relacionadas con salud. Total: {len(df_licitaciones)}")
+
+        # Normalizar 'CodigoExterno' y otros campos relevantes
+        for col in [ 'Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
+            if col in df_licitaciones.columns:
+                df_licitaciones[col] = df_licitaciones[col].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
+
+        logging.info("Campos relevantes, incluyendo 'CodigoExterno', normalizados.")
+
+        # Convertir 'CodigoExterno' a string y manejar valores nulos
+        df_licitaciones['CodigoExterno'] = df_licitaciones['CodigoExterno'].astype(str).str.strip()
+
+        # Verificar si hay valores nulos en 'CodigoExterno'
+        num_null_codes = df_licitaciones['CodigoExterno'].isnull().sum()
+        if num_null_codes > 0:
+            logging.warning(f"Hay {num_null_codes} valores nulos en 'CodigoExterno'.")
+        else:
+            logging.info("No hay valores nulos en 'CodigoExterno'.")
 
         # Agrupar por 'CodigoExterno' y sumarizar
         df_licitaciones_agrupado = df_licitaciones.groupby('CodigoExterno').agg({
@@ -1115,8 +1119,9 @@ def generar_ranking(
 
         # Guardar puntajes NO relativos en Hoja 8
         df_no_relativos = df_licitaciones_agrupado[
-            ['CodigoExterno', 'Nombre', 'NombreOrganismo', 'Puntaje Rubro', 
-             'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
+            ['CodigoExterno', 'Nombre', 'NombreOrganismo', 
+             'Puntaje Rubro', 'Puntaje Palabra', 
+             'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
         ].copy()
 
         # Convertir a lista de listas y serializar
@@ -1150,6 +1155,17 @@ def generar_ranking(
         # Seleccionar las Top 100 licitaciones únicas
         df_top_100 = df_unique.head(100)
         logging.info("Top 100 licitaciones únicas seleccionadas.")
+
+        # Verificar duplicados en df_top_100
+        duplicate_codes_final = df_top_100[df_top_100.duplicated(subset='CodigoExterno', keep=False)]
+        num_duplicates_final = len(duplicate_codes_final)
+        if num_duplicates_final > 0:
+            duplicate_codes_list = duplicate_codes_final['CodigoExterno'].unique().tolist()
+            logging.warning(f"Aún hay {num_duplicates_final} licitaciones duplicadas en el Top 100 con los siguientes CodigoExterno: {duplicate_codes_list}")
+            print(f"Aún hay {num_duplicates_final} licitaciones duplicadas en el Top 100 con los siguientes CodigoExterno: {duplicate_codes_list}")
+        else:
+            logging.info("No hay licitaciones duplicadas en el Top 100.")
+            print("No hay licitaciones duplicadas en el Top 100.")
 
         # Calcular totales para cada criterio dentro del Top 100
         total_rubro = df_top_100['Puntaje Rubro'].sum()
