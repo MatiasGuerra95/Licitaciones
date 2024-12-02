@@ -247,7 +247,7 @@ def obtener_lista_negra(worksheet_lista_negra):
         logging.error(f"Error al obtener la lista negra: {e}", exc_info=True)
         raise
 
-def obtener_rubros_y_productos(worksheet_rubros):
+def obtener_rubros_y_productos(worksheet_inicio):
     """
     Retrieves rubros and their corresponding productos from the worksheet.
 
@@ -262,7 +262,7 @@ def obtener_rubros_y_productos(worksheet_rubros):
         rubros_ranges = list(RUBROS_RANGES.values())  # ['C13', 'F13', 'I13']
         
         # Utilizar batch_get para recuperar todos los rangos de rubros de una sola vez
-        valores_rubros = worksheet_rubros.batch_get(rubros_ranges)
+        valores_rubros = worksheet_inicio.batch_get(rubros_ranges)
         logging.debug(f"Valores de rubros obtenidos: {valores_rubros}")
         
         # Extraer los valores de rubros
@@ -281,7 +281,7 @@ def obtener_rubros_y_productos(worksheet_rubros):
         rangos_productos = [r for key in PRODUCTOS_RANGES for r in PRODUCTOS_RANGES[key]]
         
         # Utilizar batch_get para recuperar todos los rangos de productos de una sola vez
-        valores_productos = worksheet_rubros.batch_get(rangos_productos)
+        valores_productos = worksheet_inicio.batch_get(rangos_productos)
         logging.debug(f"Valores de productos obtenidos: {valores_productos}")
         
         # Asignar productos a cada rubro
@@ -785,7 +785,7 @@ def procesar_licitaciones_y_generar_ranking(
         # -------------- Calcular Puntajes --------------
         palabras_clave = obtener_palabras_clave(worksheet_inicio)
         lista_negra = obtener_lista_negra(worksheet_lista_negra)
-        rubros_y_productos = obtener_rubros_y_productos(worksheet_rubros)
+        rubros_y_productos = obtener_rubros_y_productos(worksheet_inicio)
         puntaje_clientes = obtener_puntaje_clientes(worksheet_clientes)
         ponderaciones = obtener_ponderaciones(worksheet_inicio)
 
