@@ -534,18 +534,22 @@ def calcular_puntaje_clientes(nombre_organismo, puntaje_clientes):
 def actualizar_hoja(worksheet, rango, datos):
     """
     Actualiza un rango específico en una hoja con los datos proporcionados.
-
+    
     Args:
         worksheet (gspread.Worksheet): La hoja de cálculo a actualizar.
         rango (str): El rango en notación A1.
         datos (list): Los datos a subir.
-
+    
     Raises:
         APIError: Si la actualización falla debido a un error de la API.
         Exception: Para cualquier otro error.
     """
     try:
-        worksheet.update(rango, datos)
+        worksheet.update(
+            range_name=rango,
+            values=datos,
+            value_input_option='USER_ENTERED'  # Permite que Sheets interprete los tipos de datos correctamente
+        )
         logging.info(f"Hoja actualizada exitosamente en el rango {rango}.")
     except APIError as e:
         logging.warning(f"APIError al actualizar la Hoja en el rango {rango}: {e}. Reintentando...")
@@ -553,6 +557,7 @@ def actualizar_hoja(worksheet, rango, datos):
     except Exception as e:
         logging.error(f"Error al actualizar la Hoja en el rango {rango}: {e}", exc_info=True)
         raise
+
 
 # -------------------------- Funciones de Recuperación y Procesamiento de Datos --------------------------
 
@@ -864,6 +869,10 @@ def procesar_licitaciones_y_generar_ranking(
 
         # Asegurarse de que las columnas numéricas son de tipo float
         df_no_relativos.loc[:, numeric_columns] = df_no_relativos[numeric_columns].apply(pd.to_numeric, errors='coerce').fillna(0)
+
+        # Limpiar la Hoja 8 antes de subir nuevos datos
+        worksheet_ranking_no_relativo.clear()
+        logging.info("Hoja 8 (Ranking no relativo) limpiada exitosamente.")        
 
         # Preparar los datos para subir sin convertir los numéricos a string
         data_no_relativos = [df_no_relativos.columns.values.tolist()] + df_no_relativos.values.tolist()
