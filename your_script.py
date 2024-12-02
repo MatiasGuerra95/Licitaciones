@@ -816,8 +816,12 @@ def procesar_licitaciones_y_generar_ranking(
         )
         logging.info("Puntaje total calculado.")
 
+        # Eliminar duplicados basados en 'CodigoExterno', manteniendo la fila con mayor 'Puntaje Total'
+        df_licitaciones_unique = df_licitaciones.sort_values(by='Puntaje Total', ascending=False).drop_duplicates(subset='CodigoExterno', keep='first')
+        logging.info(f"Licitaciones después de eliminar duplicados: {len(df_licitaciones_unique)}")        
+
         # Guardar puntajes NO relativos en Hoja 8
-        df_no_relativos = df_licitaciones[
+        df_no_relativos = df_licitaciones_unique[
             ['CodigoExterno', 'Nombre', 'NombreOrganismo', 
              'Puntaje Rubro', 'Puntaje Palabra', 
              'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
@@ -839,7 +843,7 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info("Puntajes no relativos subidos a la Hoja 8 exitosamente.")
 
         # Seleccionar Top 100 licitaciones
-        df_top_100 = df_licitaciones.sort_values(
+        df_top_100 = df_licitaciones_unique.sort_values(
             by=['Puntaje Rubro', 'Puntaje Palabra', 'Puntaje Monto', 'Puntaje Clientes'], 
             ascending=False
         ).head(100)
@@ -894,6 +898,17 @@ def procesar_licitaciones_y_generar_ranking(
             '#', 'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Link', 
             'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
         ]]
+
+        # Verificar duplicados en df_final
+        duplicate_codes_final = df_final[df_final.duplicated(subset='CodigoExterno', keep=False)]
+        num_duplicates_final = len(duplicate_codes_final)
+        if num_duplicates_final > 0:
+            duplicate_codes_list = duplicate_codes_final['CodigoExterno'].unique().tolist()
+            logging.warning(f"Aún hay {num_duplicates_final} licitaciones duplicadas en el Top 100 con los siguientes CodigoExterno: {duplicate_codes_list}")
+            print(f"Aún hay {num_duplicates_final} licitaciones duplicadas en el Top 100 con los siguientes CodigoExterno: {duplicate_codes_list}")
+        else:
+            logging.info("No hay licitaciones duplicadas en el Top 100.")
+            print("No hay licitaciones duplicadas en el Top 100.")        
 
         # Asegurar formato correcto de decimales
         for col in ['Palabra', 'Monto', 'Puntaje Final']:
