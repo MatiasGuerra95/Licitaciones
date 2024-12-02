@@ -1140,6 +1140,16 @@ def generar_ranking(
         ).head(100)
         logging.info("Top 100 licitaciones seleccionadas.")
 
+        # Verificar y eliminar duplicados basados en 'CodigoExterno'
+        initial_count = len(df_top_100)
+        df_top_100 = df_top_100.sort_values(by='Puntaje Total').drop_duplicates(subset='CodigoExterno', keep='first').head(100)
+        final_count = len(df_top_100)
+        duplicates_removed = initial_count - final_count
+        if duplicates_removed > 0:
+            logging.info(f"Se eliminaron {duplicates_removed} licitaciones duplicadas del Top 100.")
+        else:
+            logging.info("No se encontraron duplicados en el Top 100 licitaciones.")        
+
         # Calculate totals for each criterion
         total_rubro = df_top_100['Puntaje Rubro'].sum()
         total_palabra = df_top_100['Puntaje Palabra'].sum()
