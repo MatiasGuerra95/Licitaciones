@@ -389,46 +389,41 @@ def calcular_puntaje_palabra(row, palabras_clave_set, lista_negra):
 
 def calcular_puntaje_rubro(row, rubros_y_productos):
     """
-    Calculates the rubro-based score for a given licitacion.
+    Calcula el puntaje basado en los rubros y el código de producto ONU definido.
 
     Args:
-        row (pd.Series): A row from the DataFrame representing a licitacion.
-        rubros_y_productos (dict): A dictionary mapping rubros to productos.
+        row (pd.Series): Una fila del DataFrame representando una licitación.
+        rubros_y_productos (dict): Diccionario que mapea rubros a listas de códigos de productos ONU.
 
     Returns:
-        int: The calculated rubro-based score.
+        int: Puntaje calculado basado en rubros y códigos de productos ONU.
     """
     try:
-        rubro_column = eliminar_tildes_y_normalizar(row['Rubro3']) if pd.notnull(row['Rubro3']) else ''
-        productos_column = eliminar_tildes_y_normalizar(row['Nombre producto genrico']) if pd.notnull(row['Nombre producto genrico']) else ''
+        rubro_column = row.get('Rubro3', '') if pd.notnull(row.get('Rubro3', '')) else ''
+        codigo_producto_column = str(row.get('CodigoProductoONU', '')).strip() if pd.notnull(row.get('CodigoProductoONU', '')) else ''
         puntaje_rubro = 0
-
-        logging.debug(f"Evaluando fila: Rubro='{rubro_column}', CodigoProducto='{productos_column}'")
 
         rubros_presentes = set()
         productos_presentes = set()
 
         for rubro, productos in rubros_y_productos.items():
-            if rubro in rubro_column:
+            # Comparación parcial para el rubro
+            if rubro and rubro in rubro_column:
                 rubros_presentes.add(rubro)
-                logging.info(f"Rubro encontrado: {rubro} en '{rubro_column}'")
 
-                for producto in productos:
-                    if producto in productos_column:
-                        productos_presentes.add(producto)
-                        logging.info(f"Producto encontrado: '{producto}' asociado a rubro '{rubro}'")
+            # Comparación exacta para los productos asociados al rubro
+            if codigo_producto_column in productos:
+                productos_presentes.add(codigo_producto_column)
 
-        if not rubros_presentes and not productos_presentes:
-            logging.warning(f"No se encontraron coincidencias para Rubro3='{rubro_column}' ni Nombre producto genrico='{productos_column}'.")
+        puntaje_rubro += len(rubros_presentes) * 5  # Puntaje por cada rubro coincidente
+        puntaje_rubro += len(productos_presentes) * 10  # Puntaje por cada código de producto coincidente
 
-        puntaje_rubro += len(rubros_presentes) * 5
-        puntaje_rubro += len(productos_presentes) * 10
-
-        logging.debug(f"Puntaje calculado para rubros: {puntaje_rubro}")
+        logging.debug(f"Fila evaluada: Rubros={rubros_presentes}, Productos ONU={productos_presentes}, Puntaje={puntaje_rubro}")
         return puntaje_rubro
     except Exception as e:
         logging.error(f"Error al calcular puntaje por rubro: {e}", exc_info=True)
         return 0
+
 
 def calcular_puntaje_monto(tipo_licitacion, tiempo_duracion_contrato):
     """
