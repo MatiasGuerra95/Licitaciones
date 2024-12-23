@@ -1176,7 +1176,8 @@ def generar_ranking(
 
         # Guardar puntajes NO relativos en Hoja 8
         df_no_relativos = df_licitaciones_agrupado[
-            ['CodigoExterno', 'Nombre', 'NombreOrganismo', 
+            ['CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'Fecha Publicacion',
+             'FechaCierre', 'Estado', 'ObservacionContrato', 'TiempoDuracionContrato',
              'Puntaje Rubro', 'Puntaje Palabra', 
              'Puntaje Monto', 'Puntaje Clientes', 'Puntaje Total']
         ].copy()
@@ -1273,7 +1274,7 @@ def generar_ranking(
         })
 
         df_final = df_top_100[[
-            '#', 'CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'FechaPublicacion', 'FechaCierre', 'Estado', 'ObservacionContrato', 'Link', 
+            '#', 'CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'FechaPublicacion', 'FechaCierre', 'Estado', 'ObservacionContrato', 'TiempoDuracionContrato', 'Link', 
             'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
         ]]
 
