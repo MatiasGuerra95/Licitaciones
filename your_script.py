@@ -70,8 +70,7 @@ PRODUCTOS_RANGES = {
 
 # Column Configuration
 COLUMNAS_IMPORTANTES = [
-    'CodigoExterno', 'Nombre', 'CodigoEstado', 'FechaPublicacion', 'FechaCierre',
-    'Descripcion', 'NombreOrganismo', 'Rubro3', 'Nombre producto genrico',
+    'CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'FechaPublicacion', 'FechaCierre', 'Estado', 'ObservacionContrato', 'Rubro3', 'Nombre producto genrico',
     'Tipo', 'CantidadReclamos', 'TiempoDuracionContrato', 'Link', 'CodigoProductoONU'
 ]
 
@@ -1274,7 +1273,7 @@ def generar_ranking(
         })
 
         df_final = df_top_100[[
-            '#', 'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Link', 
+            '#', 'CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'FechaPublicacion', 'FechaCierre', 'Estado', 'ObservacionContrato', 'Link', 
             'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
         ]]
 
