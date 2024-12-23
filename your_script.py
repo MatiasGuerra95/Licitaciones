@@ -937,7 +937,7 @@ def procesar_licitaciones_y_generar_ranking(
         })
 
         df_final = df_top_100[[
-            '#', 'CodigoExterno', 'Nombre', 'NombreOrganismo', 'Link', 
+            '#', 'CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'FechaPublicacion', 'FechaCierre', 'Estado', 'ObservacionContrato', 'TiempoDuracionContrato', 'Link', 
             'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
         ]]
 
