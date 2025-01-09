@@ -504,9 +504,9 @@ def actualizar_hoja(worksheet, rango, datos):
         ]
 
         worksheet.update(
-            rango,
-            datos_serializados,
-            value_input_option='USER_ENTERED'  # Permite que Sheets interprete los tipos de datos correctamente
+            values=datos_serializados,
+            range_name=rango,
+            value_input_option='USER_ENTERED'
         )
         logging.info(f"Hoja actualizada exitosamente en el rango {rango}.")
     except APIError as e:
@@ -954,7 +954,7 @@ def procesar_licitaciones_y_generar_ranking(
 
         # Asegurar formato correcto de decimales
         for col in ['Palabra', 'Monto', 'Puntaje Final']:
-            df_final[col] = df_final[col].astype(float).round(2)
+            df_final.loc[:, col] = df_final[col].astype(float).round(2)
 
         # Convert to list of lists and serialize
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
