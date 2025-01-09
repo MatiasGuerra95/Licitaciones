@@ -614,32 +614,6 @@ def integrar_licitaciones_sicep(worksheet_sicep):
         logging.error(f"Error al integrar licitaciones de SICEP: {e}", exc_info=True)
         raise
 
-# -------------------------- Rastrear Licitacion Function --------------------------
-
-def rastrear_licitacion(df, codigo_a_rastrear, etapa):
-    """
-    Rastrea una licitación específica y registra su estado en cada etapa.
-
-    Args:
-        df (pd.DataFrame): El DataFrame que representa las licitaciones actuales.
-        codigo_a_rastrear (str): El CodigoExterno de la licitacion a rastrear.
-        etapa (str): La etapa actual del procesamiento.
-    """
-    try:
-        # Filtrar la licitación específica
-        licitacion = df[df['CodigoExterno'] == codigo_a_rastrear]
-        if not licitacion.empty:
-            logging.info(f"Etapa: {etapa} - Licitación encontrada: {codigo_a_rastrear}")
-            # Opcional: Registrar detalles adicionales si es necesario
-            detalles = licitacion.to_dict('records')[0]
-            logging.debug(f"Detalles de la licitación en etapa '{etapa}': {detalles}")
-        else:
-            logging.info(f"Etapa: {etapa} - Licitación no encontrada: {codigo_a_rastrear}")
-    except KeyError:
-        logging.error(f"La columna 'CodigoExterno' no existe en el DataFrame durante la etapa '{etapa}'.")
-    except Exception as e:
-        logging.error(f"Error al rastrear la licitación en la etapa '{etapa}': {e}", exc_info=True)
-
 # -------------------------- Main Processing Function --------------------------
 
 def procesar_licitaciones_y_generar_ranking(
@@ -668,8 +642,6 @@ def procesar_licitaciones_y_generar_ranking(
         worksheet_sicep (gspread.Worksheet): Worksheet containing SICEP licitaciones.
     """
     try:
-        # Definir el CodigoExterno a rastrear
-        CODIGO_A_RASTREAR = '5482-99-LE24'  # Tu CodigoExterno específico
 
         # Extract minimum dates from Hoja 1
         valores_fechas = obtener_rango_hoja(worksheet_inicio, FECHAS_RANGE)
@@ -717,8 +689,6 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
         logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
 
-        # Rastrear la licitación en esta etapa
-        rastrear_licitacion(df_licitaciones, CODIGO_A_RASTREAR, 'Después de Concatenar')
 
         # Remove diacritics and convert to lowercase
         for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
@@ -740,8 +710,6 @@ def procesar_licitaciones_y_generar_ranking(
         ]
         logging.info(f"Total de licitaciones después de aplicar filtros de fecha: {len(df_nuevas_filtradas)}")
 
-        # Rastrear la licitación en esta etapa
-        rastrear_licitacion(df_nuevas_filtradas, CODIGO_A_RASTREAR, 'Después de Filtrar por Fechas')
 
         if df_nuevas_filtradas.empty:
             logging.warning("No hay nuevas licitaciones que cumplan con los criterios de fecha.")
@@ -782,8 +750,7 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones = pd.DataFrame(licitaciones_actualizadas[1:], columns=licitaciones_actualizadas[0])
         logging.info(f"Total de licitaciones activas después de eliminar seleccionadas: {len(df_licitaciones)}")
 
-        # Rastrear la licitación en esta etapa
-        rastrear_licitacion(df_licitaciones, CODIGO_A_RASTREAR, 'Después de Eliminar Seleccionadas')
+
 
         # Normalize and clean columns before processing
         for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
@@ -817,8 +784,7 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Total de licitaciones después de excluir organizaciones de salud: {len(df_licitaciones)}")
         logging.info(f"Total de licitaciones filtradas por salud: {num_filtradas_salud}")
 
-        # Rastrear la licitación en esta etapa
-        rastrear_licitacion(df_licitaciones, CODIGO_A_RASTREAR, 'Después de Excluir Salud')
+
 
         # -------------- Calcular Puntajes --------------
         palabras_clave = obtener_palabras_clave(worksheet_inicio)
@@ -849,15 +815,11 @@ def procesar_licitaciones_y_generar_ranking(
         )
         logging.info("Puntaje total calculado.")
 
-        # Rastrear la licitación en esta etapa
-        rastrear_licitacion(df_licitaciones, CODIGO_A_RASTREAR, 'Después de Calcular Puntajes')
 
         # Eliminar duplicados basados en 'CodigoExterno', manteniendo la fila con mayor 'Puntaje Total'
         df_licitaciones_unique = df_licitaciones.sort_values(by='Puntaje Total', ascending=False).drop_duplicates(subset='CodigoExterno', keep='first')
         logging.info(f"Licitaciones después de eliminar duplicados: {len(df_licitaciones_unique)}")        
 
-        # Rastrear la licitación en esta etapa
-        rastrear_licitacion(df_licitaciones_unique, CODIGO_A_RASTREAR, 'Después de Eliminar Duplicados')
 
         # Guardar puntajes NO relativos en Hoja 8
         df_no_relativos = df_licitaciones_unique[
@@ -923,8 +885,6 @@ def procesar_licitaciones_y_generar_ranking(
         df_top_100 = df_top_100.sort_values(by='Puntaje Total SUMAPRODUCTO', ascending=False)
         logging.info("Top 100 licitaciones ordenadas por 'Puntaje Total SUMAPRODUCTO'.")
 
-        # Rastrear la licitación en esta etapa
-        rastrear_licitacion(df_top_100, CODIGO_A_RASTREAR, 'Después de Ordenar Top 100')
 
         # Crear estructura para Hoja 2
         df_top_100['#'] = range(1, len(df_top_100) + 1)
@@ -1260,8 +1220,6 @@ def generar_ranking(
         df_top_100 = df_top_100.sort_values(by='Puntaje Total SUMAPRODUCTO', ascending=False)
         logging.info("Top 100 licitaciones ordenadas por 'Puntaje Total SUMAPRODUCTO'.")
 
-        # Rastrear la licitación en esta etapa
-        rastrear_licitacion(df_top_100, CODIGO_A_RASTREAR, 'Después de Ordenar Top 100')
 
         # Crear estructura para Hoja 2
         df_top_100['#'] = range(1, len(df_top_100) + 1)
@@ -1316,31 +1274,6 @@ def generar_ranking(
         logging.error(f"Error al generar el ranking: {e}", exc_info=True)
         raise
 
-# -------------------------- Rastrear Licitacion Función --------------------------
-
-def rastrear_licitacion(df, codigo_a_rastrear, etapa):
-    """
-    Rastrea una licitación específica y registra su estado en cada etapa.
-
-    Args:
-        df (pd.DataFrame): El DataFrame que representa las licitaciones actuales.
-        codigo_a_rastrear (str): El CodigoExterno de la licitacion a rastrear.
-        etapa (str): La etapa actual del procesamiento.
-    """
-    try:
-        # Filtrar la licitación específica
-        licitacion = df[df['CodigoExterno'] == codigo_a_rastrear]
-        if not licitacion.empty:
-            logging.info(f"Etapa: {etapa} - Licitación encontrada: {codigo_a_rastrear}")
-            # Opcional: Registrar detalles adicionales si es necesario
-            detalles = licitacion.to_dict('records')[0]
-            logging.debug(f"Detalles de la licitación en etapa '{etapa}': {detalles}")
-        else:
-            logging.info(f"Etapa: {etapa} - Licitación no encontrada: {codigo_a_rastrear}")
-    except KeyError:
-        logging.error(f"La columna 'CodigoExterno' no existe en el DataFrame durante la etapa '{etapa}'.")
-    except Exception as e:
-        logging.error(f"Error al rastrear la licitación en la etapa '{etapa}': {e}", exc_info=True)
 
 # -------------------------- Ponderaciones Function --------------------------
 
