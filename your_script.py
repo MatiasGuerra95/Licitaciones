@@ -649,8 +649,21 @@ def procesar_licitaciones_y_generar_ranking(
             logging.error("No se pudieron obtener las fechas mínimas desde la Hoja 1.")
             raise ValueError("Fechas mínimas no encontradas.")
         
-        fecha_min_publicacion = pd.to_datetime(valores_fechas[0][0], errors='coerce')
-        fecha_min_cierre = pd.to_datetime(valores_fechas[1][0], errors='coerce')
+        fecha_min_publicacion = pd.to_datetime(
+            valores_fechas[0][0],  # Cadena en el formato YYYY-MM-DD
+            format='%Y-%m-%d',
+            errors='coerce'
+        )
+        fecha_min_cierre = pd.to_datetime(
+            valores_fechas[1][0],
+            format='%Y-%m-%d',
+            errors='coerce'
+        )
+
+        logging.info(f"Valores hoja1 (RAW): {valores_fechas}")
+        logging.info(f"Fecha min publicacion parseada: {fecha_min_publicacion}")
+        logging.info(f"Fecha min cierre parseada: {fecha_min_cierre}")
+
 
         if fecha_min_publicacion is pd.NaT or fecha_min_cierre is pd.NaT:
             logging.error("Formato de fecha incorrecto en la Hoja 1.")
