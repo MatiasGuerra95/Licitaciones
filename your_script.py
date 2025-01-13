@@ -685,8 +685,8 @@ def procesar_licitaciones_y_generar_ranking(
             año_anterior = año_actual
 
         # Construct URLs
-        url_mes_actual = f"{BASE_URL}{año_actual}-{mes_actual:02d}.zip"
-        url_mes_anterior = f"{BASE_URL}{año_anterior}-{mes_anterior:02d}.zip"
+        url_mes_actual = f"{BASE_URL}{año_actual}-{mes_actual}.zip"
+        url_mes_anterior = f"{BASE_URL}{año_anterior}-{mes_anterior}.zip"
 
         logging.info(f"URL del mes actual: {url_mes_actual}")
         logging.info(f"URL del mes anterior: {url_mes_anterior}")
