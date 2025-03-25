@@ -30,7 +30,7 @@ jobs:
           sudo apt-get install -y google-chrome-stable
           
       # Descargar e instalar ChromeDriver
-      - name: Descargar ChromeDriver 116
+      - name: Descargar ChromeDriver 134
         run: |
           wget https://storage.googleapis.com/chrome-for-testing-public/134.0.6998.35/linux64/chromedriver-linux64.zip -O chromedriver-linux64.zip
           unzip chromedriver-linux64.zip -d /usr/local/bin/
