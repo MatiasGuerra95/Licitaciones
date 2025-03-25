@@ -914,12 +914,6 @@ def procesar_licitaciones_y_generar_ranking(
             'Rubro', 'Palabra', 'Monto', 'Clientes', 'Puntaje Final'
         ]]
 
-                # Reconstruir el link basándose en el CodigoExterno
-        df_final['Link'] = df_final['CodigoExterno'].apply(
-            lambda cod: f"http://www.mercadopublico.cl/fichaLicitacion.html?idLicitacion={cod}"
-        )
-
-
         # Verificar duplicados en df_final
         duplicate_codes_final = df_final[df_final.duplicated(subset='CodigoExterno', keep=False)]
         num_duplicates_final = len(duplicate_codes_final)
