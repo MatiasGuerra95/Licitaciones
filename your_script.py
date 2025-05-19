@@ -941,7 +941,7 @@ def procesar_licitaciones_y_generar_ranking(
 
         # Clear Hoja 2 and restore A1
         worksheet_ranking.clear()
-        worksheet_ranking.update('A1', [[nombre_a1]], value_input_option='USER_ENTERED')
+        worksheet_ranking.update(range_name='A1', values=[[nombre_a1]], value_input_option='USER_ENTERED')
         logging.info("Hoja 2 (Ranking) limpiada y A1 restaurado.")
 
         # Upload the final ranking to Hoja 2
@@ -1276,7 +1276,7 @@ def generar_ranking(
 
         # Clear Hoja 2 and restore A1
         worksheet_ranking.clear()
-        worksheet_ranking.update('A1', [[nombre_a1]], value_input_option='USER_ENTERED')
+        worksheet_ranking.update(range_name='A1', values=[[nombre_a1]], value_input_option='USER_ENTERED')
         logging.info("Hoja 2 (Ranking) limpiada y A1 restaurado.")
 
         # Upload the final ranking to Hoja 2

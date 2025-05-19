@@ -28,6 +28,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y google-chrome-stable
+          pip install webdriver-manager
           
       # Descargar e instalar ChromeDriver
       - name: Descargar ChromeDriver 136

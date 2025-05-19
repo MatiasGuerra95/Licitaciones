@@ -6,6 +6,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from dotenv import load_dotenv
 import pandas as pd
 import time
@@ -27,7 +28,7 @@ def setup_driver():
     options.add_argument("--window-size=1920,1080")  # Definir tamaño de ventana
 
     # Ruta de ChromeDriver
-    service = Service("/usr/local/bin/chromedriver")
+    service = Service(ChromeDriverManager().install())
 
     # Crear el objeto WebDriver
     driver = webdriver.Chrome(service=service, options=options)
@@ -51,21 +52,24 @@ def acceder_nuevas_licitaciones(driver):
 
 def omitir_finalizados(driver):
     try:
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "b-modal"))
+        )
         modals = driver.find_elements(By.CLASS_NAME, "b-modal")
         for modal in modals:
             driver.execute_script("arguments[0].style.display = 'none';", modal)
             print("Modal oculto para acceder al checkbox.")
 
-        checkbox_finalizados = WebDriverWait(driver, 10).until(
+        checkbox_finalizados = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable((By.ID, "chxFinalizados"))
         )
         if not checkbox_finalizados.is_selected():
-            checkbox_finalizados.click()
+            driver.execute_script("arguments[0].click();", checkbox_finalizados)
             print("Checkbox de finalizados marcado correctamente.")
         else:
             print("Checkbox de finalizados ya estaba marcado.")
     except Exception as e:
-        print(f"No se pudo marcar el checkbox de finalizados: {e}")
+        logging.error(f"Error al marcar checkbox finalizados: {e}")
 
 def obtener_licitaciones_disponibles(driver, licitaciones_visitadas):
     try:
