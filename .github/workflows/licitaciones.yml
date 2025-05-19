@@ -32,7 +32,7 @@ jobs:
       # Descargar e instalar ChromeDriver
       - name: Descargar ChromeDriver 134
         run: |
-          wget https://storage.googleapis.com/chrome-for-testing-public/134.0.6998.35/linux64/chromedriver-linux64.zip -O chromedriver-linux64.zip
+          wget https://storage.googleapis.com/chrome-for-testing-public/136.0.7103.92/linux64/chromedriver-linux64.zip -O chromedriver-linux64.zip
           unzip chromedriver-linux64.zip -d /usr/local/bin/
           mv /usr/local/bin/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver
           chmod +x /usr/local/bin/chromedriver
