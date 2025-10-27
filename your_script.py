@@ -44,11 +44,38 @@ SALUD_EXCLUIR = [
     'INSTITUTO NACIONAL DE REHABILITACION', 'INSTITUTO NACIONAL DEL CANCER',
     'INSTITUTO NACIONAL DEL TORAX', 'INSTITUTO PSIQUIÁTRICO',
     'SERV NAC SALUD', 'SERV SALUD', 'SERVICIO DE SALUD',
-    'SERVICIO NACIONAL DE SALUD', 'SERVICIO SALUD', 'INSTITUTO DE DESARROLLO AGROPECUARIO'
+    'SERVICIO NACIONAL DE SALUD', 'SERVICIO SALUD', 'INSTITUTO DE DESARROLLO AGROPECUARIO','SALUD',
+    'CORPORACION CULTURAL', 'CORPORACION MUNICIPAL DE DEPORTES', 'CORPORACION MUNICIPAL DE EDUCACION',
+    'CENTRO DE FORMACION TECNICA', 'CULTURA','DEFENSORIA DE LOS DERECHOS DE LA NIÑEZ',
+    'JUNTA NACIONAL DE AUXILIO ESCOLAR Y BECA','JUNTA NACIONAL DE JARDINES         INFANTILES',
+    'OFICINA DE ESTUDIOS Y POLITICAS AGRARIAS', 'SERVICIO LOCAL DE EDUCACIÓN', 'SERVICIO LOCAL DE EDUCACION',
+    'SUBSECRETARÍA DE LAS CULTURAS Y LAS ARTES'
 ]
 
 # Lista Negra (Blacklist) Configuration
 LISTA_NEGRA_RANGE = 'B2:B'
+
+# Regiones Configuration
+REGIONES_CHILE = [
+    'TODAS LAS REGIONES',
+    'REGIÓN DE ARICA Y PARINACOTA',
+    'REGIÓN DE TARAPACÁ',
+    'REGIÓN DE ANTOFAGASTA',
+    'REGIÓN DE ATACAMA',
+    'REGIÓN DE COQUIMBO',
+    'REGIÓN DE VALPARAÍSO',
+    'REGIÓN METROPOLITANA',
+    'REGIÓN DEL LIBERTADOR GENERAL BERNARDO O\'HIGGINS',
+    'REGIÓN DEL MAULE',
+    'REGIÓN DE ÑUBLE',
+    'REGIÓN DEL BIOBÍO',
+    'REGIÓN DE LA ARAUCANÍA',
+    'REGIÓN DE LOS RÍOS',
+    'REGIÓN DE LOS LAGOS',
+    'REGIÓN DE AYSÉN',
+    'REGIÓN DE MAGALLANES Y LA ANTÁRTICA CHILENA'
+]
+REGIONES_RANGE = 'L27:L43'  # Ajusta este rango según donde quieras que aparezcan las regiones en la hoja
 
 # Ranges Configuration
 FECHAS_RANGE = 'C6:C7'
@@ -243,6 +270,41 @@ def obtener_lista_negra(worksheet_lista_negra):
     except Exception as e:
         logging.error(f"Error al obtener la lista negra: {e}", exc_info=True)
         raise
+
+def excluir_por_lista_negra(df: pd.DataFrame, lista_negra: set) -> pd.DataFrame:
+    """
+    Excluye filas donde al menos un término/frase de la lista negra
+    aparezca en el texto normalizado de (Nombre + Descripcion).
+    """
+    if df.empty or not lista_negra:
+        return df
+
+    nombre = df.get('Nombre', pd.Series('', index=df.index)).fillna('')
+    descripcion = df.get('Descripcion', pd.Series('', index=df.index)).fillna('')
+    texto = (nombre + ' ' + descripcion).astype(str).apply(eliminar_tildes_y_normalizar)
+
+    singles = [t for t in lista_negra if t and (' ' not in t and '-' not in t)]
+    phrases = [t for t in lista_negra if t and ((' ' in t) or ('-' in t))]
+
+    patrones = []
+    if singles:
+        patrones.append(r'(?:' + '|'.join(re.escape(t) for t in singles) + r')')
+    if phrases:
+        patrones.extend(re.escape(t) for t in phrases)
+
+    if not patrones:
+        return df
+
+    regex_negra = re.compile('|'.join(patrones), re.IGNORECASE)
+    mask_negra = texto.str.contains(regex_negra, na=False)
+
+    eliminadas = int(mask_negra.sum())
+    if eliminadas > 0:
+        logging.info(f"[Lista Negra] Eliminadas {eliminadas} licitaciones por coincidencia con términos prohibidos.")
+
+    return df[~mask_negra].copy()
+
+
 
 def obtener_rubros_y_productos(worksheet_inicio):
     """
@@ -702,11 +764,47 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
         logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
 
+        # Get selected regions from worksheet
+        regiones_seleccionadas = obtener_rango_hoja(worksheet_inicio, REGIONES_RANGE)
+        regiones_seleccionadas = [reg[0] for reg in regiones_seleccionadas if reg and reg[0] == 'X']
+        
+        # If no regions are selected or 'TODAS LAS REGIONES' is selected, keep all
+        if not regiones_seleccionadas or any(reg == 'X' for reg in regiones_seleccionadas[:1]):
+            logging.info("Procesando licitaciones de todas las regiones")
+        else:
+            # Get the names of the selected regions
+            indices_seleccionados = [i for i, reg in enumerate(regiones_seleccionadas) if reg == 'X']
+            regiones_filtrar = [REGIONES_CHILE[i] for i in indices_seleccionados]
+            logging.info(f"Filtrando por las siguientes regiones: {regiones_filtrar}")
+            
+            # Filter licitaciones by selected regions
+            df_licitaciones = df_licitaciones[
+                df_licitaciones['NombreOrganismo'].str.contains('|'.join(regiones_filtrar), 
+                                                               case=False, 
+                                                               na=False, 
+                                                               regex=True)
+            ]
+            logging.info(f"Total de licitaciones después de filtrar por región: {len(df_licitaciones)}")
 
         # Remove diacritics and convert to lowercase
         for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
             if col in df_licitaciones.columns:
                 df_licitaciones[col] = df_licitaciones[col].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
+        
+        # Get blacklist words from worksheet
+        lista_negra = obtener_rango_hoja(worksheet_lista_negra, LISTA_NEGRA_RANGE)
+        lista_negra = [eliminar_tildes_y_normalizar(palabra[0].lower()) for palabra in lista_negra if palabra]
+        logging.info(f"Palabras en lista negra: {lista_negra}")
+
+        # Filter out licitaciones containing blacklist words
+        def contiene_palabra_lista_negra(row):
+            nombre = str(row['Nombre']).lower() if pd.notna(row['Nombre']) else ''
+            descripcion = str(row['Descripcion']).lower() if pd.notna(row['Descripcion']) else ''
+            texto_completo = nombre + ' ' + descripcion
+            return not any(palabra in texto_completo for palabra in lista_negra)
+
+        df_licitaciones = df_licitaciones[df_licitaciones.apply(contiene_palabra_lista_negra, axis=1)]
+        logging.info(f"Total de licitaciones después de filtrar lista negra: {len(df_licitaciones)}")
         
         if 'CodigoProductoONU' in df_licitaciones.columns:
             df_licitaciones['CodigoProductoONU'] = df_licitaciones['CodigoProductoONU'].apply(lambda x: eliminar_tildes_y_normalizar(str(x).split('.')[0]) if pd.notnull(x) else x)
@@ -1085,6 +1183,10 @@ def generar_ranking(
         regex_excluir = re.compile('|'.join(SALUD_EXCLUIR), re.IGNORECASE)
         df_licitaciones = df_licitaciones[~df_licitaciones['NombreOrganismo'].str.contains(regex_excluir, na=False)]
         logging.info(f"Filtradas licitaciones relacionadas con salud. Total: {len(df_licitaciones)}")
+
+        # Excluir por lista negra <<<
+        df_licitaciones = excluir_por_lista_negra(df_licitaciones, lista_negra)
+        logging.info(f"Total tras lista negra: {len(df_licitaciones)}")
 
         # Normalizar 'CodigoExterno' y otros campos relevantes
         for col in [ 'Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:

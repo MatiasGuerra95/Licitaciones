@@ -1,0 +1,10 @@
+2025-05-19 12:41:12,056 - INFO - Logging is configured and initialized.
+2025-05-19 12:41:12,056 - ERROR - La variable de entorno 'GOOGLE_APPLICATION_CREDENTIALS_JSON' no está definida.
+2025-05-19 12:41:12,056 - CRITICAL - Script finalizado con errores: La variable de entorno 'GOOGLE_APPLICATION_CREDENTIALS_JSON' no está definida.
+Traceback (most recent call last):
+  File "/home/matias/Licitaciones/your_script.py", line 1336, in main
+    gc = authenticate_google_sheets()
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/matias/Licitaciones/your_script.py", line 121, in authenticate_google_sheets
+    raise EnvironmentError(f"La variable de entorno '{CREDENTIALS_ENV_VAR}' no está definida.")
+OSError: La variable de entorno 'GOOGLE_APPLICATION_CREDENTIALS_JSON' no está definida.
