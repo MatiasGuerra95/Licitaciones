@@ -101,7 +101,7 @@ PRODUCTOS_RANGES = {
 
 # Column Configuration
 COLUMNAS_IMPORTANTES = [
-    'CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'FechaPublicacion', 'FechaCierre', 'Estado', 'ObservacionContrato', 'Rubro3', 'Nombre producto genrico',
+    'CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'RegionUnidad', 'FechaPublicacion', 'FechaCierre', 'Estado', 'ObservacionContrato', 'Rubro3', 'Nombre producto genrico',
     'Tipo', 'CantidadReclamos', 'TiempoDuracionContrato', 'Link', 'CodigoProductoONU'
 ]
 
