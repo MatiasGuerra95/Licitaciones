@@ -57,26 +57,29 @@ SALUD_EXCLUIR = [
 LISTA_NEGRA_RANGE = 'B2:B'
 
 # Regiones Configuration
-REGIONES_CHILE = [
-    'TODAS LAS REGIONES',
-    'REGIÓN DE ARICA Y PARINACOTA',
-    'REGIÓN DE TARAPACÁ',
-    'REGIÓN DE ANTOFAGASTA',
-    'REGIÓN DE ATACAMA',
-    'REGIÓN DE COQUIMBO',
-    'REGIÓN DE VALPARAÍSO',
-    'REGIÓN METROPOLITANA',
-    'REGIÓN DEL LIBERTADOR GENERAL BERNARDO O\'HIGGINS',
-    'REGIÓN DEL MAULE',
-    'REGIÓN DE ÑUBLE',
-    'REGIÓN DEL BIOBÍO',
-    'REGIÓN DE LA ARAUCANÍA',
-    'REGIÓN DE LOS RÍOS',
-    'REGIÓN DE LOS LAGOS',
-    'REGIÓN DE AYSÉN',
-    'REGIÓN DE MAGALLANES Y LA ANTÁRTICA CHILENA'
-]
-REGION_CELL = 'F6'  # Celda para el menú desplegable de regiones
+REGIONES_CHILE = {
+    'TODAS LAS REGIONES': '',  # Valor vacío para incluir todas las regiones
+    'REGIÓN DE ARICA Y PARINACOTA': 'ARICA',
+    'REGIÓN DE TARAPACÁ': 'TARAPACA',
+    'REGIÓN DE ANTOFAGASTA': 'ANTOFAGASTA',
+    'REGIÓN DE ATACAMA': 'ATACAMA',
+    'REGIÓN DE COQUIMBO': 'COQUIMBO',
+    'REGIÓN DE VALPARAÍSO': 'VALPARAISO',
+    'REGIÓN METROPOLITANA': 'METROPOLITANA',
+    'REGIÓN DEL LIBERTADOR GENERAL BERNARDO O\'HIGGINS': 'OHIGGINS',
+    'REGIÓN DEL MAULE': 'MAULE',
+    'REGIÓN DE ÑUBLE': 'NUBLE',
+    'REGIÓN DEL BIOBÍO': 'BIOBIO',
+    'REGIÓN DE LA ARAUCANÍA': 'ARAUCANIA',
+    'REGIÓN DE LOS RÍOS': 'RIOS',
+    'REGIÓN DE LOS LAGOS': 'LAGOS',
+    'REGIÓN DE AYSÉN': 'AYSEN',
+    'REGIÓN DE MAGALLANES Y LA ANTÁRTICA CHILENA': 'MAGALLANES'
+}
+
+# Ubicación de la celda del filtro de región
+REGION_RANGE = 'F6'
+REGION_TITULO_RANGE = 'E6'
 
 # Ranges Configuration
 FECHAS_RANGE = 'C6:C7'
@@ -106,35 +109,53 @@ COLUMNAS_IMPORTANTES = [
 
 def setup_region_dropdown(worksheet):
     """
-    Configures the region dropdown menu in the worksheet using gspread native methods.
+    Configures the region filter in the worksheet.
     """
     try:
-        # Create a hidden sheet for the dropdown list if it doesn't exist
-        try:
-            hidden_sheet = worksheet.spreadsheet.worksheet('_RegionesData')
-        except WorksheetNotFound:
-            hidden_sheet = worksheet.spreadsheet.add_worksheet('_RegionesData', 1, 1)
+        # Set the title for the region filter
+        worksheet.update(REGION_TITULO_RANGE, 'Región')
         
-        # Update the hidden sheet with the regions list
-        hidden_sheet.update('A1:A' + str(len(REGIONES_CHILE)), [[region] for region in REGIONES_CHILE])
+        # Format the title cell
+        worksheet.format(REGION_TITULO_RANGE, {
+            "backgroundColor": {"red": 0.8, "green": 0.8, "blue": 0.8},
+            "horizontalAlignment": "CENTER",
+            "textFormat": {"bold": True}
+        })
         
-        # Create the data validation rule
-        validation_rule = f'=_RegionesData!A1:A{len(REGIONES_CHILE)}'
+        # Set up the dropdown with regions
+        worksheet.update(REGION_RANGE, list(REGIONES_CHILE.keys())[0])  # Set default value
         
-        # Apply the data validation rule to F6
-        worksheet.data_validation_rule(REGION_CELL, validation_rule)
+        # Create data validation for the dropdown
+        validation_rule = {
+            "condition": {
+                "type": "ONE_OF_LIST",
+                "values": [{"userEnteredValue": region} for region in REGIONES_CHILE.keys()]
+            },
+            "showCustomUi": True,
+            "strict": True
+        }
         
-        # Set default value if cell is empty
-        cell_value = worksheet.get(REGION_CELL)
-        if not cell_value or not cell_value[0]:
-            worksheet.update(REGION_CELL, 'TODAS LAS REGIONES')
+        # Set the validation rule
+        worksheet.batch_update([{
+            'range': REGION_RANGE,
+            'values': [[list(REGIONES_CHILE.keys())[0]]],  # Set default value
+        }])
         
-        # Hide the data sheet
-        hidden_sheet.hide()
-            
-        logging.info("Menú desplegable de regiones configurado correctamente")
+        # Apply data validation
+        worksheet.set_data_validation(
+            REGION_RANGE,
+            validation_rule
+        )
+        
+        # Format the dropdown cell
+        worksheet.format(REGION_RANGE, {
+            "backgroundColor": {"red": 0.93, "green": 0.93, "blue": 0.93},
+            "horizontalAlignment": "CENTER"
+        })
+        
+        logging.info("Filtro de regiones configurado correctamente")
     except Exception as e:
-        logging.error(f"Error al configurar el menú desplegable de regiones: {str(e)}")
+        logging.error(f"Error al configurar el filtro de regiones: {str(e)}")
 
 def setup_logging():
     """
@@ -798,12 +819,13 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
 
         # Get selected region from worksheet
-        region_seleccionada = obtener_rango_hoja(worksheet_inicio, REGION_CELL)
+        region_seleccionada = obtener_rango_hoja(worksheet_inicio, REGION_RANGE)
         if not region_seleccionada or not region_seleccionada[0] or region_seleccionada[0][0] == 'TODAS LAS REGIONES':
             logging.info("Procesando licitaciones de todas las regiones")
         else:
-            region_filtrar = region_seleccionada[0][0]
-            logging.info(f"Filtrando por la región: {region_filtrar}")
+            region_nombre = region_seleccionada[0][0]
+            region_filtrar = REGIONES_CHILE[region_nombre]
+            logging.info(f"Filtrando por la región: {region_nombre} ({region_filtrar})")
             
             # Filter licitaciones by selected region
             df_licitaciones = df_licitaciones[
