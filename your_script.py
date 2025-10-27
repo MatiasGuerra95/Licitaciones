@@ -59,22 +59,22 @@ LISTA_NEGRA_RANGE = 'B2:B'
 # Regiones Configuration
 REGIONES_CHILE = {
     'TODAS LAS REGIONES': '',  # Valor vacío para incluir todas las regiones
-    'REGIÓN DE ARICA Y PARINACOTA': 'ARICA',
-    'REGIÓN DE TARAPACÁ': 'TARAPACA',
-    'REGIÓN DE ANTOFAGASTA': 'ANTOFAGASTA',
-    'REGIÓN DE ATACAMA': 'ATACAMA',
-    'REGIÓN DE COQUIMBO': 'COQUIMBO',
-    'REGIÓN DE VALPARAÍSO': 'VALPARAISO',
-    'REGIÓN METROPOLITANA': 'METROPOLITANA',
-    'REGIÓN DEL LIBERTADOR GENERAL BERNARDO O\'HIGGINS': 'OHIGGINS',
-    'REGIÓN DEL MAULE': 'MAULE',
-    'REGIÓN DE ÑUBLE': 'NUBLE',
-    'REGIÓN DEL BIOBÍO': 'BIOBIO',
-    'REGIÓN DE LA ARAUCANÍA': 'ARAUCANIA',
-    'REGIÓN DE LOS RÍOS': 'RIOS',
-    'REGIÓN DE LOS LAGOS': 'LAGOS',
-    'REGIÓN DE AYSÉN': 'AYSEN',
-    'REGIÓN DE MAGALLANES Y LA ANTÁRTICA CHILENA': 'MAGALLANES'
+    'Región de Arica y Parinacota': 'ARICA',
+    'Región de Tarapacá': 'TARAPACA',
+    'Región de Antofagasta': 'ANTOFAGASTA',
+    'Región de Atacama': 'ATACAMA',
+    'Región de Coquimbo': 'COQUIMBO',
+    'Región de Valparaíso': 'VALPARAISO',
+    'Región Metropolitana de Santiago': 'METROPOLITANA',
+    'Región del Libertador General Bernardo O´Higgins': 'OHIGGINS',
+    'Región del Maule': 'MAULE',
+    'Región del Ñuble': 'NUBLE',
+    'Región del Biobío': 'BIOBIO',
+    'Región de la Araucanía': 'ARAUCANIA',
+    'Región de Los Ríos': 'RIOS',
+    'Región de los Lagos': 'LAGOS',
+    'Región Aysén del General Carlos Ibáñez del Campo': 'AYSEN',
+    'Región de Magallanes y de la Antártica': 'MAGALLANES'
 }
 
 # Ubicación de la celda del filtro de región
