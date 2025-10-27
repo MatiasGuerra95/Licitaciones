@@ -59,22 +59,22 @@ LISTA_NEGRA_RANGE = 'B2:B'
 # Regiones Configuration
 REGIONES_CHILE = {
     'TODAS LAS REGIONES': '',  # Valor vacío para incluir todas las regiones
-    'Región de Arica y Parinacota': 'ARICA',
-    'Región de Tarapacá': 'TARAPACA',
-    'Región de Antofagasta': 'ANTOFAGASTA',
-    'Región de Atacama': 'ATACAMA',
-    'Región de Coquimbo': 'COQUIMBO',
-    'Región de Valparaíso': 'VALPARAISO',
-    'Región Metropolitana de Santiago': 'METROPOLITANA',
-    'Región del Libertador General Bernardo O´Higgins': 'OHIGGINS',
-    'Región del Maule': 'MAULE',
-    'Región del Ñuble': 'NUBLE',
-    'Región del Biobío': 'BIOBIO',
-    'Región de la Araucanía': 'ARAUCANIA',
-    'Región de Los Ríos': 'RIOS',
-    'Región de los Lagos': 'LAGOS',
-    'Región Aysén del General Carlos Ibáñez del Campo': 'AYSEN',
-    'Región de Magallanes y de la Antártica': 'MAGALLANES'
+    'Región de Arica y Parinacota': 'Arica y Parinacota',
+    'Región de Tarapacá': 'Tarapaca',
+    'Región de Antofagasta': 'Antofagasta',
+    'Región de Atacama': 'Atacama',
+    'Región de Coquimbo': 'Coquimbo',
+    'Región de Valparaíso': 'Valparaiso',
+    'Región Metropolitana de Santiago': 'Metropolitana de Santiago',
+    'Región del Libertador General Bernardo O´Higgins': 'Libertador General Bernardo O\'Higgins',
+    'Región del Maule': 'Maule',
+    'Región de Ñuble': 'Nuble',
+    'Región del Biobío': 'Biobio',
+    'Región de La Araucanía': 'Araucania',
+    'Región de Los Ríos': 'Los Rios',
+    'Región de Los Lagos': 'Los Lagos',
+    'Región Aysén del General Carlos Ibáñez del Campo': 'Aysen del General Carlos Ibanez del Campo',
+    'Región de Magallanes y de la Antártica': 'Magallanes y de la Antartica Chilena'
 }
 
 # Ubicación de la celda del filtro de región
@@ -827,12 +827,22 @@ def procesar_licitaciones_y_generar_ranking(
             region_filtrar = REGIONES_CHILE[region_nombre]
             logging.info(f"Filtrando por la región: {region_nombre} ({region_filtrar})")
             
-            # Filter licitaciones by selected region
+            # Asegurarse de que RegionUnidad está presente
+            if 'RegionUnidad' not in df_licitaciones.columns:
+                logging.warning("Columna RegionUnidad no encontrada en los datos")
+                df_licitaciones['RegionUnidad'] = ''
+            
+            # Normalizar RegionUnidad para la comparación
+            df_licitaciones['RegionUnidad'] = df_licitaciones['RegionUnidad'].apply(
+                lambda x: eliminar_tildes_y_normalizar(str(x)) if pd.notnull(x) else ''
+            )
+            
+            # Filter licitaciones by selected region using RegionUnidad
             df_licitaciones = df_licitaciones[
-                df_licitaciones['NombreOrganismo'].str.contains(region_filtrar, 
-                                                               case=False, 
-                                                               na=False, 
-                                                               regex=False)
+                df_licitaciones['RegionUnidad'].str.contains(region_filtrar, 
+                                                           case=False, 
+                                                           na=False, 
+                                                           regex=False)
             ]
             logging.info(f"Total de licitaciones después de filtrar por región: {len(df_licitaciones)}")
 
