@@ -75,7 +75,7 @@ REGIONES_CHILE = [
     'REGIÓN DE AYSÉN',
     'REGIÓN DE MAGALLANES Y LA ANTÁRTICA CHILENA'
 ]
-REGIONES_RANGE = 'L27:L43'  # Ajusta este rango según donde quieras que aparezcan las regiones en la hoja
+REGION_CELL = 'F6'  # Celda para el menú desplegable de regiones
 
 # Ranges Configuration
 FECHAS_RANGE = 'C6:C7'
@@ -102,6 +102,36 @@ COLUMNAS_IMPORTANTES = [
 ]
 
 # -------------------------- Logging Setup --------------------------
+
+def setup_region_dropdown(worksheet):
+    """
+    Configures the region dropdown menu in the worksheet.
+    """
+    try:
+        # Create data validation rule for the region dropdown
+        validation_rule = {
+            "condition": {
+                "type": "ONE_OF_LIST",
+                "values": [{"userEnteredValue": region} for region in REGIONES_CHILE]
+            },
+            "showCustomUi": True,
+            "strict": True
+        }
+        
+        # Set data validation for the region cell
+        worksheet.data_validation_rules.set_data_validation_for_cell(
+            REGION_CELL,
+            validation_rule
+        )
+        
+        # Set default value if cell is empty
+        cell_value = worksheet.get(REGION_CELL)
+        if not cell_value or not cell_value[0]:
+            worksheet.update(REGION_CELL, 'TODAS LAS REGIONES')
+            
+        logging.info("Menú desplegable de regiones configurado correctamente")
+    except Exception as e:
+        logging.error(f"Error al configurar el menú desplegable de regiones: {str(e)}")
 
 def setup_logging():
     """
@@ -764,25 +794,20 @@ def procesar_licitaciones_y_generar_ranking(
         df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
         logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
 
-        # Get selected regions from worksheet
-        regiones_seleccionadas = obtener_rango_hoja(worksheet_inicio, REGIONES_RANGE)
-        regiones_seleccionadas = [reg[0] for reg in regiones_seleccionadas if reg and reg[0] == 'X']
-        
-        # If no regions are selected or 'TODAS LAS REGIONES' is selected, keep all
-        if not regiones_seleccionadas or any(reg == 'X' for reg in regiones_seleccionadas[:1]):
+        # Get selected region from worksheet
+        region_seleccionada = obtener_rango_hoja(worksheet_inicio, REGION_CELL)
+        if not region_seleccionada or not region_seleccionada[0] or region_seleccionada[0][0] == 'TODAS LAS REGIONES':
             logging.info("Procesando licitaciones de todas las regiones")
         else:
-            # Get the names of the selected regions
-            indices_seleccionados = [i for i, reg in enumerate(regiones_seleccionadas) if reg == 'X']
-            regiones_filtrar = [REGIONES_CHILE[i] for i in indices_seleccionados]
-            logging.info(f"Filtrando por las siguientes regiones: {regiones_filtrar}")
+            region_filtrar = region_seleccionada[0][0]
+            logging.info(f"Filtrando por la región: {region_filtrar}")
             
-            # Filter licitaciones by selected regions
+            # Filter licitaciones by selected region
             df_licitaciones = df_licitaciones[
-                df_licitaciones['NombreOrganismo'].str.contains('|'.join(regiones_filtrar), 
+                df_licitaciones['NombreOrganismo'].str.contains(region_filtrar, 
                                                                case=False, 
                                                                na=False, 
-                                                               regex=True)
+                                                               regex=False)
             ]
             logging.info(f"Total de licitaciones después de filtrar por región: {len(df_licitaciones)}")
 
@@ -1441,6 +1466,10 @@ def main():
         try:
             sh = gc.open_by_key(SHEET_ID)
             logging.info(f"Spreadsheet con ID {SHEET_ID} abierto exitosamente.")
+            
+            # Configure region dropdown in the first worksheet
+            worksheet_inicio = sh.sheet1
+            setup_region_dropdown(worksheet_inicio)
         except SpreadsheetNotFound as e:
             logging.error(f"Spreadsheet con ID {SHEET_ID} no encontrado: {e}", exc_info=True)
             raise
