@@ -28,7 +28,8 @@ LOG_BACKUP_COUNT = 5
 SHEET_ID = '1EGoDJtO-b5dAGzC8LRYyZVdhHdcE2_ukgZAl-Ni9IxM'
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/drive.file"
 ]
 CREDENTIALS_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS_JSON"
 
@@ -105,29 +106,31 @@ COLUMNAS_IMPORTANTES = [
 
 def setup_region_dropdown(worksheet):
     """
-    Configures the region dropdown menu in the worksheet.
+    Configures the region dropdown menu in the worksheet using gspread native methods.
     """
     try:
-        # Create data validation rule for the region dropdown
-        validation_rule = {
-            "condition": {
-                "type": "ONE_OF_LIST",
-                "values": [{"userEnteredValue": region} for region in REGIONES_CHILE]
-            },
-            "showCustomUi": True,
-            "strict": True
-        }
+        # Create a hidden sheet for the dropdown list if it doesn't exist
+        try:
+            hidden_sheet = worksheet.spreadsheet.worksheet('_RegionesData')
+        except WorksheetNotFound:
+            hidden_sheet = worksheet.spreadsheet.add_worksheet('_RegionesData', 1, 1)
         
-        # Set data validation for the region cell
-        worksheet.data_validation_rules.set_data_validation_for_cell(
-            REGION_CELL,
-            validation_rule
-        )
+        # Update the hidden sheet with the regions list
+        hidden_sheet.update('A1:A' + str(len(REGIONES_CHILE)), [[region] for region in REGIONES_CHILE])
+        
+        # Create the data validation rule
+        validation_rule = f'=_RegionesData!A1:A{len(REGIONES_CHILE)}'
+        
+        # Apply the data validation rule to F6
+        worksheet.data_validation_rule(REGION_CELL, validation_rule)
         
         # Set default value if cell is empty
         cell_value = worksheet.get(REGION_CELL)
         if not cell_value or not cell_value[0]:
             worksheet.update(REGION_CELL, 'TODAS LAS REGIONES')
+        
+        # Hide the data sheet
+        hidden_sheet.hide()
             
         logging.info("Menú desplegable de regiones configurado correctamente")
     except Exception as e:
