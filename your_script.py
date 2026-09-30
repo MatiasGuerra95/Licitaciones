@@ -69,7 +69,7 @@ REGIONES_CHILE = {
     'Región de Coquimbo': 'Coquimbo',
     'Región de Valparaíso': 'Valparaiso',
     'Región Metropolitana de Santiago': 'Metropolitana de Santiago',
-    'Región del Libertador General Bernardo O´Higgins': 'Libertador General Bernardo O\'Higgins',
+    'Región del Libertador General Bernardo O´Higgins': 'Libertador General Bernardo',  # Los datos usan O´Higgins con acento agudo
     'Región del Maule': 'Maule',
     'Región de Ñuble': 'Nuble',
     'Región del Biobío': 'Biobio',
@@ -77,8 +77,11 @@ REGIONES_CHILE = {
     'Región de Los Ríos': 'Los Rios',
     'Región de Los Lagos': 'Los Lagos',
     'Región Aysén del General Carlos Ibáñez del Campo': 'Aysen del General Carlos Ibanez del Campo',
-    'Región de Magallanes y de la Antártica': 'Magallanes y de la Antartica Chilena'
+    'Región de Magallanes y de la Antártica': 'Magallanes'
 }
+
+# Comuna -> región, generado desde los datos abiertos de Mercado Público (para deducir la región de SICEP)
+COMUNAS_REGION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config', 'comunas_region.json')
 
 # Ubicación de la celda del filtro de región
 REGION_RANGE = 'F6'
@@ -479,8 +482,11 @@ def calcular_puntaje_palabra(row, palabras_clave_set, lista_negra):
         # Excluir palabras de la lista negra
         palabras_texto = palabras_texto - lista_negra
 
-        # Calcular intersección con palabras clave
-        palabras_encontradas = palabras_clave_set.intersection(palabras_texto)
+        # Buscar palabras que empiecen con cada palabra clave (ej. 'analist' -> 'analista', 'analistas')
+        palabras_encontradas = {
+            clave for clave in palabras_clave_set
+            if any(palabra.startswith(clave) for palabra in palabras_texto)
+        }
         puntaje_palabra += len(palabras_encontradas) * 10  # +10 por cada palabra clave encontrada
 
         for palabra in palabras_encontradas:
@@ -825,6 +831,31 @@ def convertir_fechas(serie):
         fechas[no_iso] = pd.to_datetime(serie[no_iso], format='mixed', dayfirst=True, errors='coerce')
     return fechas
 
+def region_desde_ciudad(ciudad, comunas_region):
+    """
+    Infers the region of a licitación that only has a city (SICEP).
+
+    Args:
+        ciudad (str): The 'Ciudad' text, e.g. "Calama" or "Antofagasta, Región de Antofagasta".
+        comunas_region (dict): Normalized comuna -> REGIONES_CHILE key.
+
+    Returns:
+        str or None: The REGIONES_CHILE key, or None if the region can't be recognized.
+    """
+    texto = eliminar_tildes_y_normalizar(str(ciudad))
+
+    # A comuna, alone or next to other text (checked first: the comuna Los Lagos is in Los Ríos)
+    for parte in [texto] + re.split(r'[,;/()\-]', texto):
+        region = comunas_region.get(parte.strip())
+        if region:
+            return region
+
+    # Or the region name itself
+    for region, filtro in REGIONES_CHILE.items():
+        if filtro and eliminar_tildes_y_normalizar(filtro) in texto:
+            return region
+    return None
+
 def integrar_licitaciones_sicep(worksheet_sicep):
     """
     Integrates licitaciones from SICEP into the designated worksheet.
@@ -853,6 +884,9 @@ def integrar_licitaciones_sicep(worksheet_sicep):
         for columna in columnas_obligatorias:
             if columna not in df_sicep.columns:
                 df_sicep[columna] = None
+
+        # SICEP has no code; the link is unique per licitación, so duplicates removal doesn't merge them all
+        df_sicep['CodigoExterno'] = df_sicep['CodigoExterno'].fillna(df_sicep['Link'])
 
         # Convert to list of lists for Google Sheets
         data_to_upload = [df_sicep.columns.values.tolist()] + df_sicep.values.tolist()
@@ -959,19 +993,31 @@ def procesar_licitaciones_y_generar_ranking(
             if 'RegionUnidad' not in df_licitaciones.columns:
                 logging.warning("Columna RegionUnidad no encontrada en los datos")
                 df_licitaciones['RegionUnidad'] = ''
-            
+
+            # SICEP no trae región: se deduce desde su columna 'Ciudad'
+            if 'Ciudad' in df_licitaciones.columns:
+                with open(COMUNAS_REGION_FILE, encoding='utf-8') as f:
+                    comunas_region = json.load(f)
+                sin_region = (
+                    (df_licitaciones['RegionUnidad'].fillna('').astype(str).str.strip() == '') &
+                    df_licitaciones['Ciudad'].notna()
+                )
+                df_licitaciones.loc[sin_region, 'RegionUnidad'] = df_licitaciones.loc[sin_region, 'Ciudad'].apply(
+                    lambda ciudad: region_desde_ciudad(ciudad, comunas_region)
+                )
+
             # Normalizar RegionUnidad para la comparación
             df_licitaciones['RegionUnidad'] = df_licitaciones['RegionUnidad'].apply(
                 lambda x: eliminar_tildes_y_normalizar(str(x)) if pd.notnull(x) else ''
             )
-            
-            # Filter licitaciones by selected region using RegionUnidad
-            df_licitaciones = df_licitaciones[
-                df_licitaciones['RegionUnidad'].str.contains(region_filtrar, 
-                                                           case=False, 
-                                                           na=False, 
-                                                           regex=False)
-            ]
+
+            # Filter licitaciones by selected region using RegionUnidad.
+            # Rows whose region couldn't be determined (unrecognized SICEP city) are kept, not silently dropped.
+            en_region = df_licitaciones['RegionUnidad'].str.contains(region_filtrar, case=False, na=False, regex=False)
+            region_desconocida = df_licitaciones['RegionUnidad'] == ''
+            if region_desconocida.any():
+                logging.warning(f"{region_desconocida.sum()} filas sin región reconocible se mantienen al filtrar por región.")
+            df_licitaciones = df_licitaciones[en_region | region_desconocida]
             logging.info(f"Total de licitaciones después de filtrar por región: {len(df_licitaciones)}")
 
         # Remove diacritics and convert to lowercase
