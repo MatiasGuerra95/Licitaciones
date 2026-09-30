@@ -11,6 +11,7 @@ import requests
 import gspread
 from google.oauth2.service_account import Credentials
 from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
+from gspread.utils import ValidationConditionType
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from zipfile import ZipFile
 from io import BytesIO
@@ -109,42 +110,31 @@ COLUMNAS_IMPORTANTES = [
 
 def setup_region_dropdown(worksheet):
     """
-    Configures the region filter in the worksheet.
+    Configures the region filter in the worksheet, keeping the region already selected.
     """
     try:
         # Set the title for the region filter
-        worksheet.update(REGION_TITULO_RANGE, 'Región')
-        
+        worksheet.update(range_name=REGION_TITULO_RANGE, values=[['Región']])
+
         # Format the title cell
         worksheet.format(REGION_TITULO_RANGE, {
             "backgroundColor": {"red": 0.8, "green": 0.8, "blue": 0.8},
             "horizontalAlignment": "CENTER",
             "textFormat": {"bold": True}
         })
-        
-        # Set up the dropdown with regions
-        worksheet.update(REGION_RANGE, list(REGIONES_CHILE.keys())[0])  # Set default value
-        
-        # Create data validation for the dropdown
-        validation_rule = {
-            "condition": {
-                "type": "ONE_OF_LIST",
-                "values": [{"userEnteredValue": region} for region in REGIONES_CHILE.keys()]
-            },
-            "showCustomUi": True,
-            "strict": True
-        }
-        
-        # Set the validation rule
-        worksheet.batch_update([{
-            'range': REGION_RANGE,
-            'values': [[list(REGIONES_CHILE.keys())[0]]],  # Set default value
-        }])
-        
-        # Apply data validation
-        worksheet.set_data_validation(
+
+        # Set default value only if the cell is empty or holds an invalid region
+        region_actual = worksheet.acell(REGION_RANGE).value
+        if region_actual not in REGIONES_CHILE:
+            worksheet.update(range_name=REGION_RANGE, values=[[list(REGIONES_CHILE.keys())[0]]])
+
+        # Apply data validation (dropdown with regions)
+        worksheet.add_validation(
             REGION_RANGE,
-            validation_rule
+            ValidationConditionType.one_of_list,
+            list(REGIONES_CHILE.keys()),
+            strict=True,
+            showCustomUi=True
         )
         
         # Format the dropdown cell
@@ -883,7 +873,15 @@ def procesar_licitaciones_y_generar_ranking(
 
 
         if df_nuevas_filtradas.empty:
-            logging.warning("No hay nuevas licitaciones que cumplan con los criterios de fecha.")
+            # Clear result sheets so the ranking is not rebuilt from a previous run's data
+            logging.warning("No hay nuevas licitaciones que cumplan con los criterios de fecha. Se limpian Hoja 7, Hoja 8 y Hoja 2.")
+            worksheet_licitaciones_activas.clear()
+            worksheet_ranking_no_relativo.clear()
+            nombre_a1 = worksheet_ranking.acell('A1').value or ""
+            worksheet_ranking.clear()
+            worksheet_ranking.update(range_name='A1', values=[[nombre_a1]], value_input_option='USER_ENTERED')
+            worksheet_ranking.update(range_name='A3', values=[["Sin licitaciones nuevas que cumplan los filtros de fecha."]])
+            return
         else:
             # Clear Hoja 7 before uploading new data
             worksheet_licitaciones_activas.clear()
