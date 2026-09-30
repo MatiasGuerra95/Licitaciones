@@ -105,6 +105,10 @@ PRODUCTOS_RANGES = {
     'rubro3': [f'J{row}' for row in range(14, 24)]
 }
 
+# Fechas de la hoja Ranking: se muestran sin hora con este formato de Google Sheets
+COLUMNAS_FECHA_RANKING = ['FechaPublicacion', 'FechaCierre']
+FORMATO_FECHA_RANKING = 'yyyy-mm-dd'
+
 # Column Configuration
 COLUMNAS_IMPORTANTES = [
     'CodigoExterno', 'Nombre', 'Descripcion', 'NombreOrganismo', 'RegionUnidad', 'FechaPublicacion', 'FechaCierre', 'Estado', 'ObservacionContrato', 'Rubro3', 'Nombre producto genrico',
@@ -1264,6 +1268,12 @@ def procesar_licitaciones_y_generar_ranking(
         for col in ['Palabra', 'Monto', 'Puntaje Final']:
             df_final.loc[:, col] = df_final[col].astype(float).round(2)
 
+        # Fechas sin hora
+        df_final = df_final.assign(**{
+            col: pd.to_datetime(df_final[col], errors='coerce').dt.strftime('%Y-%m-%d')
+            for col in COLUMNAS_FECHA_RANKING
+        })
+
         # Convert to list of lists and serialize
         data_final = [df_final.columns.values.tolist()] + df_final.values.tolist()
         data_final = [
@@ -1282,6 +1292,17 @@ def procesar_licitaciones_y_generar_ranking(
         # Upload the final ranking to Hoja 2
         actualizar_hoja(worksheet_ranking, 'A3', data_final)
         logging.info("Nuevo ranking de licitaciones con puntajes ajustados subido a la Hoja 2 exitosamente.")
+
+        # Date format for the date columns: clear() only removes values, so cells may keep a format with time
+        if not df_final.empty:
+            ultima_fila = 3 + len(df_final)  # Encabezado en la fila 3, datos desde la 4
+            worksheet_ranking.batch_format([
+                {
+                    'range': f"{gspread.utils.rowcol_to_a1(4, columna)}:{gspread.utils.rowcol_to_a1(ultima_fila, columna)}",
+                    'format': {'numberFormat': {'type': 'DATE', 'pattern': FORMATO_FECHA_RANKING}}
+                }
+                for columna in [df_final.columns.get_loc(col) + 1 for col in COLUMNAS_FECHA_RANKING]
+            ])
 
     except Exception as e:
         logging.error(f"Error en procesar_licitaciones_y_generar_ranking: {e}", exc_info=True)
