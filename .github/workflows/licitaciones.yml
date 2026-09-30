@@ -5,6 +5,10 @@ on:
   repository_dispatch:
     types: [execute_workflow]
 
+# La API de Mercado Público rechaza peticiones simultáneas con el mismo ticket
+concurrency:
+  group: licitaciones
+
 jobs:
   run_script:
     runs-on: ubuntu-latest
@@ -44,12 +48,27 @@ jobs:
        # run: ls -l /usr/local/bin/chromedriver
 
           
+      - name: Restaurar caché de detalles de Mercado Público
+        uses: actions/cache/restore@v4
+        with:
+          path: cache
+          key: mp-detalles-${{ github.run_id }}
+          restore-keys: mp-detalles-
+
       - name: Correr Script Licitaciones
         env:
           GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
           PORTAL_USER: ${{ secrets.PORTAL_USER }}          # Usuario de SICEP
           PORTAL_PASSWORD: ${{ secrets.PORTAL_PASSWORD }}  # Contraseña de SICEP
+          MP_TICKET: ${{ secrets.MP_TICKET }}              # Ticket API Mercado Público
         run: python your_script.py
+
+      - name: Guardar caché de detalles de Mercado Público
+        if: always()  # Guarda el avance aunque el script falle
+        uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: mp-detalles-${{ github.run_id }}
 
       - name: Guardar archivo de log
         if: always()  # Esto asegura que el paso se ejecute incluso si otros pasos fallan

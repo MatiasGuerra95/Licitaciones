@@ -13,8 +13,6 @@ from google.oauth2.service_account import Credentials
 from gspread.exceptions import APIError, SpreadsheetNotFound, WorksheetNotFound
 from gspread.utils import ValidationConditionType
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
-from zipfile import ZipFile
-from io import BytesIO
 
 from extractores.sicep import login_and_scrape  # Asegúrate de que este módulo está correctamente implementado y accesible
 
@@ -34,8 +32,12 @@ SCOPES = [
 ]
 CREDENTIALS_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS_JSON"
 
-# URLs Configuration
-BASE_URL = "https://transparenciachc.blob.core.windows.net/lic-da/"
+# Mercado Público API Configuration
+MP_API_URL = "https://api.mercadopublico.cl/servicios/v1/publico/licitaciones.json"
+MP_TICKET_ENV_VAR = "MP_TICKET"
+MP_LINK_URL = "https://www.mercadopublico.cl/fichaLicitacion.html?idLicitacion="
+MP_CACHE_FILE = os.path.join('cache', 'detalles_mp.json')  # Detalles guardados entre ejecuciones
+MP_MAX_FALLAS_SEGUIDAS = 10  # Deja de pedir detalles tras esta cantidad de errores seguidos
 
 # Health-Related Organizations to Exclude
 SALUD_EXCLUIR = [
@@ -624,53 +626,204 @@ def actualizar_hoja(worksheet, rango, datos):
 
 # -------------------------- Data Retrieval Functions --------------------------
 
-def procesar_licitaciones(url):
+class ErrorTemporalApiMP(Exception):
+    """Temporary Mercado Público API error (simultaneous requests or network failure) worth retrying."""
+
+
+@retry(
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    stop=stop_after_attempt(6),
+    retry=retry_if_exception_type(ErrorTemporalApiMP),
+    reraise=True
+)
+def consultar_api_mercado_publico(params, ticket):
     """
-    Downloads and processes a ZIP file containing CSVs of licitaciones.
+    Queries the Mercado Público API, retrying temporary errors.
 
     Args:
-        url (str): The URL to download the ZIP file from.
+        params (dict): Query parameters, without the ticket.
+        ticket (str): The API ticket.
 
     Returns:
-        pd.DataFrame: A concatenated DataFrame of all processed CSVs.
+        dict: The JSON response, which contains 'Listado'.
     """
     try:
-        logging.info(f"Descargando licitaciones desde: {url}")
-        response = requests.get(url)
-        response.raise_for_status()
-        zip_file = ZipFile(BytesIO(response.content))
-        logging.info(f"Archivo ZIP descargado y abierto exitosamente desde: {url}")
+        response = requests.get(MP_API_URL, params={**params, 'ticket': ticket}, timeout=120)
+        data = response.json()
+    except (requests.RequestException, ValueError) as e:
+        # The URL in the message includes the ticket, so it is masked before it reaches the log
+        raise ErrorTemporalApiMP(str(e).replace(ticket, '***')) from None
 
-        df_list = []
-        for file_name in zip_file.namelist():
-            if file_name.endswith('.csv'):
-                logging.info(f"Procesando {file_name}...")
-                try:
-                    df = pd.read_csv(
-                        zip_file.open(file_name),
-                        encoding='ISO-8859-1',
-                        sep=';',
-                        on_bad_lines='skip',
-                        low_memory=False
-                    )
-                    df_list.append(df)
-                    logging.info(f"Archivo {file_name} procesado exitosamente.")
-                except Exception as e:
-                    logging.error(f"Error procesando el archivo {file_name}: {e}", exc_info=True)
+    if data.get('Codigo') == 10500:  # "Hemos detectado que existen peticiones simultáneas"
+        raise ErrorTemporalApiMP(data.get('Mensaje'))
+    if 'Listado' not in data:
+        raise RuntimeError(f"La API de Mercado Público respondió {response.status_code}: {data.get('Mensaje', data)}")
+    return data
 
-        if df_list:
-            df_concatenado = pd.concat(df_list, ignore_index=True)
-            logging.info(f"Todos los archivos CSV de {url} han sido concatenados exitosamente.")
-            return df_concatenado
-        else:
-            logging.warning(f"No se encontraron archivos CSV en {url}.")
-            return pd.DataFrame()
-    except requests.HTTPError as e:
-        logging.error(f"Error HTTP al descargar {url}: {e}", exc_info=True)
-        return pd.DataFrame()
-    except Exception as e:
-        logging.error(f"Error descargando o procesando el archivo desde {url}: {e}", exc_info=True)
-        return pd.DataFrame()
+def cargar_cache_detalles():
+    """
+    Loads the licitación details saved by previous runs.
+
+    Returns:
+        dict: CodigoExterno -> {'FechaCierre': closing date in the active list, 'Detalle': API detail}.
+    """
+    try:
+        with open(MP_CACHE_FILE, encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as e:
+        logging.warning(f"No se pudo leer la caché de detalles ({e}); se descargarán de nuevo.")
+        return {}
+
+def guardar_cache_detalles(cache):
+    """
+    Saves the licitación details so the next run doesn't download them again.
+
+    Args:
+        cache (dict): CodigoExterno -> {'FechaCierre': ..., 'Detalle': ...}.
+    """
+    os.makedirs(os.path.dirname(MP_CACHE_FILE), exist_ok=True)
+    with open(MP_CACHE_FILE, 'w', encoding='utf-8') as f:
+        json.dump(cache, f, ensure_ascii=False)
+
+def detalle_a_filas(detalle):
+    """
+    Converts an API licitación detail into rows with the Mercado Público CSV column names
+    (one row per item, like the CSV).
+
+    Args:
+        detalle (dict): A licitación from the API 'Listado' when queried by code.
+
+    Returns:
+        list: A list of row dicts.
+    """
+    comprador = detalle.get('Comprador') or {}
+    fechas = detalle.get('Fechas') or {}
+    codigo = detalle.get('CodigoExterno')
+    base = {
+        'CodigoExterno': codigo,
+        'Link': f"{MP_LINK_URL}{codigo}",
+        'Nombre': detalle.get('Nombre'),
+        'Descripcion': detalle.get('Descripcion'),
+        'CodigoEstado': detalle.get('CodigoEstado'),
+        'Estado': detalle.get('Estado'),
+        'NombreOrganismo': comprador.get('NombreOrganismo'),
+        'RegionUnidad': comprador.get('RegionUnidad'),
+        'Tipo': detalle.get('Tipo'),
+        'CantidadReclamos': detalle.get('CantidadReclamos'),
+        'FechaPublicacion': fechas.get('FechaPublicacion'),
+        'FechaCierre': fechas.get('FechaCierre'),  # El 'FechaCierre' del nivel superior viene vacío
+        'TiempoDuracionContrato': detalle.get('TiempoDuracionContrato'),
+        'ObservacionContrato': detalle.get('ObservacionContract'),  # Así lo llama la API
+    }
+
+    items = (detalle.get('Items') or {}).get('Listado') or [{}]
+    filas = []
+    for item in items:
+        # 'Categoria' viene como "Rubro1 / Rubro2 / Rubro3"
+        categoria = item.get('Categoria') or ''
+        filas.append({
+            **base,
+            'CodigoProductoONU': item.get('CodigoProducto'),
+            'Rubro3': categoria.split(' / ')[-1].strip() or None,
+            'Nombre producto genrico': item.get('NombreProducto'),
+        })
+    return filas
+
+def obtener_licitaciones_api(fecha_min_cierre, lista_negra):
+    """
+    Downloads the active licitaciones from the Mercado Público API.
+
+    The active list only has code, name, state and closing date, so the detail of each
+    candidate is requested one at a time (the API rejects simultaneous requests). Details
+    are cached between runs and only requested again when the closing date changes.
+
+    Args:
+        fecha_min_cierre (pd.Timestamp): Licitaciones closing earlier are skipped.
+        lista_negra (list): Normalized blacklist phrases; licitaciones whose name contains one are skipped.
+
+    Returns:
+        pd.DataFrame: One row per item, with the Mercado Público CSV column names.
+    """
+    ticket = os.environ.get(MP_TICKET_ENV_VAR)
+    if not ticket:
+        logging.error(f"La variable de entorno '{MP_TICKET_ENV_VAR}' no está definida.")
+        raise EnvironmentError(f"La variable de entorno '{MP_TICKET_ENV_VAR}' no está definida.")
+
+    activas = consultar_api_mercado_publico({'estado': 'activas'}, ticket)['Listado']
+    logging.info(f"Licitaciones activas en la API de Mercado Público: {len(activas)}")
+
+    # Pre-filter with the list data to avoid requesting details that would be discarded anyway
+    candidatas = []
+    for licitacion in activas:
+        # Without a closing date the date filter would discard it later anyway
+        fecha_cierre = pd.to_datetime(licitacion.get('FechaCierre'), errors='coerce')
+        if pd.isna(fecha_cierre) or fecha_cierre < fecha_min_cierre:
+            continue
+        nombre = eliminar_tildes_y_normalizar(licitacion.get('Nombre') or '')
+        if any(palabra in nombre for palabra in lista_negra):
+            continue
+        candidatas.append(licitacion)
+    logging.info(f"Licitaciones candidatas tras prefiltrar por fecha de cierre y lista negra: {len(candidatas)}")
+
+    # Reuse cached details of licitaciones that are still active with the same closing date
+    cierres_activos = {licitacion['CodigoExterno']: licitacion.get('FechaCierre') for licitacion in activas}
+    cache = {
+        codigo: entrada for codigo, entrada in cargar_cache_detalles().items()
+        if codigo in cierres_activos and entrada.get('FechaCierre') == cierres_activos[codigo]
+    }
+    pendientes = [licitacion for licitacion in candidatas if licitacion['CodigoExterno'] not in cache]
+    logging.info(f"Detalles en caché: {len(candidatas) - len(pendientes)}. Detalles por descargar: {len(pendientes)}")
+
+    fallas_seguidas = 0
+    for i, licitacion in enumerate(pendientes, start=1):
+        codigo = licitacion['CodigoExterno']
+        try:
+            listado = consultar_api_mercado_publico({'codigo': codigo}, ticket)['Listado']
+            fallas_seguidas = 0
+        except Exception as e:
+            logging.error(f"No se pudo obtener el detalle de {codigo}: {e}")
+            fallas_seguidas += 1
+            if fallas_seguidas >= MP_MAX_FALLAS_SEGUIDAS:
+                logging.error("Demasiados errores seguidos en la API; se continúa con los detalles obtenidos hasta ahora.")
+                break
+            continue
+
+        if listado:
+            cache[codigo] = {'FechaCierre': licitacion.get('FechaCierre'), 'Detalle': listado[0]}
+
+        # Save progress periodically so a failed run doesn't lose the downloaded details
+        if i % 100 == 0:
+            guardar_cache_detalles(cache)
+            logging.info(f"Detalles descargados: {i}/{len(pendientes)}")
+
+    guardar_cache_detalles(cache)
+
+    filas = [
+        fila
+        for licitacion in candidatas if licitacion['CodigoExterno'] in cache
+        for fila in detalle_a_filas(cache[licitacion['CodigoExterno']]['Detalle'])
+    ]
+    df_api = pd.DataFrame(filas)
+    logging.info(f"Licitaciones obtenidas desde la API: {df_api['CodigoExterno'].nunique() if filas else 0} ({len(df_api)} filas por ítem).")
+    return df_api
+
+def convertir_fechas(serie):
+    """
+    Converts a date column that mixes formats: ISO from the API and possibly dd-mm-yyyy from SICEP.
+
+    Args:
+        serie (pd.Series): The column to convert.
+
+    Returns:
+        pd.Series: Datetimes, NaT where a value can't be interpreted.
+    """
+    fechas = pd.to_datetime(serie, format='ISO8601', errors='coerce')
+    no_iso = fechas.isna() & serie.notna()
+    if no_iso.any():
+        fechas[no_iso] = pd.to_datetime(serie[no_iso], format='mixed', dayfirst=True, errors='coerce')
+    return fechas
 
 def integrar_licitaciones_sicep(worksheet_sicep):
     """
@@ -778,34 +931,19 @@ def procesar_licitaciones_y_generar_ranking(
         logging.info(f"Fecha mínima de publicación: {fecha_min_publicacion}")
         logging.info(f"Fecha mínima de cierre: {fecha_min_cierre}")
 
-        # Determine current and previous month/year
-        now = datetime.now()
-        mes_actual = now.month
-        año_actual = now.year
+        # Get blacklist words from worksheet (also used to pre-filter the API candidates)
+        lista_negra = obtener_rango_hoja(worksheet_lista_negra, LISTA_NEGRA_RANGE)
+        lista_negra = [eliminar_tildes_y_normalizar(palabra[0].lower()) for palabra in lista_negra if palabra]
+        logging.info(f"Palabras en lista negra: {lista_negra}")
 
-        if mes_actual == 1:
-            mes_anterior = 12
-            año_anterior = año_actual - 1
-        else:
-            mes_anterior = mes_actual - 1
-            año_anterior = año_actual
-
-        # Construct URLs
-        url_mes_actual = f"{BASE_URL}{año_actual}-{mes_actual}.zip"
-        url_mes_anterior = f"{BASE_URL}{año_anterior}-{mes_anterior}.zip"
-
-        logging.info(f"URL del mes actual: {url_mes_actual}")
-        logging.info(f"URL del mes anterior: {url_mes_anterior}")
-
-        # Download and process licitaciones
-        df_mes_actual = procesar_licitaciones(url_mes_actual)
-        df_mes_anterior = procesar_licitaciones(url_mes_anterior)
+        # Download active licitaciones from the Mercado Público API
+        df_api = obtener_licitaciones_api(fecha_min_cierre, lista_negra)
 
         # Integrate SICEP licitaciones
         df_sicep = integrar_licitaciones_sicep(worksheet_sicep)
 
         # Concatenate all licitaciones
-        df_licitaciones = pd.concat([df_mes_actual, df_mes_anterior, df_sicep], ignore_index=True)
+        df_licitaciones = pd.concat([df_api, df_sicep], ignore_index=True)
         logging.info(f"Total de licitaciones después de concatenar: {len(df_licitaciones)}")
 
         # Get selected region from worksheet
@@ -840,11 +978,6 @@ def procesar_licitaciones_y_generar_ranking(
         for col in ['Nombre', 'Descripcion', 'Rubro3', 'Nombre producto genrico', 'NombreOrganismo']:
             if col in df_licitaciones.columns:
                 df_licitaciones[col] = df_licitaciones[col].apply(lambda x: eliminar_tildes_y_normalizar(x) if isinstance(x, str) else x)
-        
-        # Get blacklist words from worksheet
-        lista_negra = obtener_rango_hoja(worksheet_lista_negra, LISTA_NEGRA_RANGE)
-        lista_negra = [eliminar_tildes_y_normalizar(palabra[0].lower()) for palabra in lista_negra if palabra]
-        logging.info(f"Palabras en lista negra: {lista_negra}")
 
         # Filter out licitaciones containing blacklist words
         def contiene_palabra_lista_negra(row):
@@ -862,7 +995,7 @@ def procesar_licitaciones_y_generar_ranking(
         # Convert date columns to datetime
         for col in ['FechaPublicacion', 'FechaCierre']:
             if col in df_licitaciones.columns:
-                df_licitaciones[col] = pd.to_datetime(df_licitaciones[col], errors='coerce')
+                df_licitaciones[col] = convertir_fechas(df_licitaciones[col])
 
         # Filter by minimum dates
         df_nuevas_filtradas = df_licitaciones[
@@ -932,7 +1065,7 @@ def procesar_licitaciones_y_generar_ranking(
         # Convert date columns to datetime
         for col in ['FechaPublicacion', 'FechaCierre']:
             if col in df_licitaciones.columns:
-                df_licitaciones[col] = pd.to_datetime(df_licitaciones[col], errors='coerce')
+                df_licitaciones[col] = convertir_fechas(df_licitaciones[col])
 
         # -------------- Exclude Health-Related Organizations (Vectorized) --------------
 
